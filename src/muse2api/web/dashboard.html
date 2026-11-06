@@ -100,7 +100,8 @@ svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor;
 }
 
 /* ---------- shell ---------- */
-.app { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+.app { display: grid; grid-template-columns: var(--side-w, 232px) minmax(0, 1fr); min-height: 100vh; --side-w: 232px; }
+.app.collapsed { --side-w: 74px; }
 .side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; background: var(--side-bg); color: var(--side-text); border-right: 1px solid var(--side-border); z-index: 40; }
 .wordmark { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-weight: 700; font-size: 15px; letter-spacing: -.02em; }
 .wordmark .glyph { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; background: linear-gradient(140deg, #edb78b, #e5ac82 55%, #c9895c); color: #241b15; font-size: 12px; font-weight: 800; letter-spacing: -.04em; }
@@ -139,10 +140,33 @@ svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor;
 .side .logout { display: flex; align-items: center; gap: 9px; background: none; border: 0; color: var(--side-text); padding: 7px 10px; border-radius: 7px; cursor: pointer; text-align: left; }
 .side .logout:hover { background: var(--side-2); color: #f2f0e8; }
 .side :focus-visible { outline: 2px solid var(--side-accent); outline-offset: -2px; }
+.langpick { display: flex; align-items: center; gap: 8px; color: var(--side-muted); font-size: 11.5px; }
+.langpick select { flex: 1; min-width: 0; height: 28px; background: var(--side-2); border: 1px solid var(--side-border);
+  color: var(--side-text); border-radius: 7px; font-size: 12px; padding: 0 6px; cursor: pointer; }
+/* Collapsed sidebar: an icon rail. Phones keep the full-width drawer. */
+@media (min-width: 961px) {
+  .app.collapsed .side .wordmark { padding: 18px 0 14px; justify-content: center; }
+  .app.collapsed .side .wordmark .wb,
+  .app.collapsed .side .health b,
+  .app.collapsed .side .health small,
+  .app.collapsed .side .navlabel,
+  .app.collapsed .side nav a .nl,
+  .app.collapsed .side nav .count,
+  .app.collapsed .side .langpick,
+  .app.collapsed .side .themes,
+  .app.collapsed .side .logout span { display: none; }
+  .app.collapsed .side .health { grid-template-columns: 1fr; place-items: center; margin: 0 12px 10px; padding: 10px 0; }
+  .app.collapsed .side nav { padding: 8px 10px; }
+  .app.collapsed .side nav a, .app.collapsed .side .logout { justify-content: center; padding: 9px 0; }
+  .app.collapsed .side-foot { padding: 10px 10px 14px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .app { transition: grid-template-columns .16s ease; }
+}
 
 /* ---------- top bar (product) ---------- */
 .topbar { display: flex; position: sticky; top: 0; z-index: 30; align-items: center; gap: 10px;
-  padding: 10px 28px 10px 22px; background: color-mix(in srgb, var(--bg) 82%, transparent);
+  padding: 10px max(22px, calc((100% - 1320px) / 2)); background: color-mix(in srgb, var(--bg) 82%, transparent);
   backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
   border-bottom: 1px solid var(--border); }
 .topbar .title { font-weight: 600; font-size: 15px; letter-spacing: -.01em; margin-right: 4px; display: none; }
@@ -161,7 +185,7 @@ svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor;
 .topbar .pulse { margin-left: 0; flex: none; }
 .scrim { display: none; }
 
-main { padding: 24px 32px 56px; max-width: 1360px; width: 100%; }
+main { padding: 24px 32px 56px; max-width: 1320px; width: 100%; margin: 0 auto; }
 .page-head { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
 .page-head h1 { margin: 0; font-size: 23px; letter-spacing: -.02em; font-weight: 600; }
 .page-head .sub { color: var(--muted); font-size: 13px; margin-top: 3px; max-width: 640px; line-height: 1.5; }
@@ -297,6 +321,7 @@ td.num { font-family: var(--mono); font-size: 12.5px; }
 td.trunc { max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
 td.zero { color: var(--faint); }
 td.hot { color: var(--err); font-weight: 650; }
+td.warn { color: var(--warn); font-weight: 650; }
 td .sub { color: var(--muted); font-size: 12px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
 td.actions { text-align: right; }
 td.actions .row { flex-wrap: nowrap; justify-content: flex-end; gap: 4px; }
@@ -503,6 +528,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h8.5M17.5 7H20M4 17h3.5M12.5 17H20"/><circle cx="15" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></symbol>
   <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5-11-6.5z"/></symbol>
+  <symbol id="i-rail" viewBox="0 0 24 24"><path d="M10 6l-6 6 6 6M17 6l-6 6 6 6"/></symbol>
 </svg>
 
 <!-- login screen -->
@@ -537,29 +563,31 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
 
 <div class="app" id="app" hidden>
   <aside class="side" id="side" aria-label="Navigation">
-    <div class="wordmark"><svg class="mark" aria-hidden="true"><use href="#i-brand"/></svg><span><span class="brandname">Muse<b>2</b>API</span><small id="version">admin</small></span></div>
+    <div class="wordmark"><svg class="mark" aria-hidden="true"><use href="#i-brand"/></svg><span class="wb"><span class="brandname">Muse<b>2</b>API</span><small id="version">admin</small></span></div>
     <div class="health" id="health" role="status" aria-live="polite">
       <span class="pulse" id="health-dot"></span><b id="health-text">Checking…</b><small id="health-sub">&nbsp;</small>
     </div>
     <nav>
       <div class="navlabel">Manage</div>
-      <a href="#overview" data-page="overview"><svg class="i"><use href="#i-overview"/></svg>Overview</a>
-      <a href="#accounts" data-page="accounts"><svg class="i"><use href="#i-accounts"/></svg>Accounts<span class="count" id="nav-accounts"></span></a>
-      <a href="#keys" data-page="keys"><svg class="i"><use href="#i-keys"/></svg>API Keys<span class="count" id="nav-keys"></span></a>
-      <a href="#requests" data-page="requests"><svg class="i"><use href="#i-requests"/></svg>Requests</a>
-      <a href="#models" data-page="models"><svg class="i"><use href="#i-cube"/></svg>Models</a>
-      <a href="#playground" data-page="playground"><svg class="i"><use href="#i-play"/></svg>Playground</a>
+      <a href="#overview" data-page="overview" title="Overview"><svg class="i"><use href="#i-overview"/></svg><span class="nl">Overview</span></a>
+      <a href="#accounts" data-page="accounts" title="Accounts"><svg class="i"><use href="#i-accounts"/></svg><span class="nl">Accounts</span><span class="count" id="nav-accounts"></span></a>
+      <a href="#keys" data-page="keys" title="API Keys"><svg class="i"><use href="#i-keys"/></svg><span class="nl">API Keys</span><span class="count" id="nav-keys"></span></a>
+      <a href="#requests" data-page="requests" title="Requests"><svg class="i"><use href="#i-requests"/></svg><span class="nl">Requests</span></a>
+      <a href="#models" data-page="models" title="Models"><svg class="i"><use href="#i-cube"/></svg><span class="nl">Models</span></a>
+      <a href="#playground" data-page="playground" title="Playground"><svg class="i"><use href="#i-play"/></svg><span class="nl">Playground</span></a>
       <div class="navlabel" style="margin-top:14px">System</div>
-      <a href="#logs" data-page="logs"><svg class="i"><use href="#i-logs"/></svg>Logs</a>
-      <a href="#settings" data-page="settings"><svg class="i"><use href="#i-sliders"/></svg>Settings</a>
+      <a href="#logs" data-page="logs" title="Logs"><svg class="i"><use href="#i-logs"/></svg><span class="nl">Logs</span></a>
+      <a href="#settings" data-page="settings" title="Settings"><svg class="i"><use href="#i-sliders"/></svg><span class="nl">Settings</span></a>
     </nav>
     <div class="side-foot">
+      <button type="button" class="logout" id="side-collapse" aria-expanded="true" title="Collapse sidebar"><svg class="i"><use href="#i-rail"/></svg><span>Collapse sidebar</span></button>
+      <label class="langpick"><span>Language</span><select id="lang" aria-label="Language"><option value="en">English</option><option value="vi">Tiếng Việt</option><option value="zh">中文</option></select></label>
       <div class="themes" role="group" aria-label="Theme">
         <button type="button" data-theme="auto" title="Follow system" aria-label="Follow system"><svg class="i"><use href="#i-auto"/></svg></button>
         <button type="button" data-theme="light" title="Light" aria-label="Light"><svg class="i"><use href="#i-sun"/></svg></button>
         <button type="button" data-theme="dark" title="Dark" aria-label="Dark"><svg class="i"><use href="#i-moon"/></svg></button>
       </div>
-      <button type="button" class="logout" id="signout"><svg class="i"><use href="#i-logout"/></svg>Sign out</button>
+      <button type="button" class="logout" id="signout"><svg class="i"><use href="#i-logout"/></svg><span>Sign out</span></button>
     </div>
   </aside>
   <div class="scrim" id="scrim"></div>
@@ -637,17 +665,32 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
           <div class="tools"><button class="btn primary big" id="key-new" type="button"><svg class="i"><use href="#i-plus"/></svg>Issue API key</button></div>
         </div>
         <div class="tiles" id="key-tiles" style="margin-bottom: 12px;"></div>
+        <div class="filters">
+          <div class="searchbar">
+            <svg class="i"><use href="#i-search"/></svg>
+            <input type="text" id="k-q" placeholder="Search keys by name, note or prefix" aria-label="Search keys" autocomplete="off" spellcheck="false">
+            <button type="button" class="q-clear" id="k-q-clear" hidden aria-label="Clear search"><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <select id="k-status" aria-label="Key status">
+            <option value="all">All keys</option>
+            <option value="active">Active only</option>
+            <option value="expiring">Expiring within 7 days</option>
+            <option value="revoked">Revoked</option>
+            <option value="expired">Expired</option>
+          </select>
+          <span class="stamp" id="k-count"></span>
+        </div>
         <div class="panel">
           <div class="tablewrap">
             <table class="resp">
               <thead><tr>
-                <th>Name</th><th class="hide-sm">Key</th><th>Status</th><th class="num">Total</th><th class="num">24h</th><th class="num">Errors 24h</th><th>Last request</th><th class="hide-sm">Created</th><th></th>
+                <th>Name</th><th class="hide-sm">Key</th><th>Status</th><th class="num">Total</th><th class="num">24h</th><th class="num">Errors 24h</th><th>Last request</th><th class="hide-sm">Expires</th><th></th>
               </tr></thead>
               <tbody id="keys-body"></tbody>
             </table>
           </div>
         </div>
-        <p class="muted" style="font-size: 12px; margin: 8px 2px 0;">Figures come from the request log (kept for the configured retention period) and exclude polls. Click a row to see that key's requests.</p>
+        <p class="muted" style="font-size: 12px; margin: 8px 2px 0;">Figures come from the request log (kept for the configured retention period) and exclude polls. Click a row to see that key's requests; Rotate replaces its secret without touching its history.</p>
       </section>
 
       <!-- requests -->
@@ -814,11 +857,141 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const PAGES = {overview: "Overview", accounts: "Accounts", keys: "API Keys", requests: "Requests",
                  models: "Models", playground: "Playground", logs: "Logs", settings: "Settings"};
+  const I18N = {
+    vi: {
+      "Overview": "Tổng quan", "Accounts": "Tài khoản", "API Keys": "Khoá API",
+      "Requests": "Yêu cầu", "Models": "Mô hình", "Playground": "Thử nghiệm",
+      "Logs": "Nhật ký", "Settings": "Cài đặt", "Manage": "Quản lý", "System": "Hệ thống",
+      "Sign out": "Đăng xuất", "Sign in": "Đăng nhập", "Language": "Ngôn ngữ",
+      "Collapse sidebar": "Thu gọn thanh bên", "Expand sidebar": "Mở rộng thanh bên",
+      "Theme": "Giao diện", "Follow system": "Theo hệ thống", "Light": "Sáng", "Dark": "Tối",
+      "Search…": "Tìm kiếm…", "Search keys by name, note or prefix": "Tìm theo tên, ghi chú hoặc tiền tố",
+      "Refresh": "Làm mới", "Export CSV": "Xuất CSV", "Export JSON": "Xuất JSON",
+      "Issue API key": "Tạo khoá API", "Rename": "Đổi tên", "Rotate": "Xoay khoá",
+      "Revoke": "Thu hồi", "Restore": "Khôi phục", "Delete": "Xoá", "Cancel": "Huỷ",
+      "Save": "Lưu", "Import": "Nhập", "Close": "Đóng", "Run": "Chạy", "Clear": "Xoá nội dung",
+      "Copy": "Sao chép", "Newer": "Mới hơn", "Older": "Cũ hơn",
+      "Name": "Tên", "Key": "Khoá", "Status": "Trạng thái", "Total": "Tổng", "24h": "24 giờ",
+      "Errors 24h": "Lỗi 24 giờ", "Last request": "Yêu cầu gần nhất", "Expires": "Hết hạn",
+      "Created": "Ngày tạo", "Time": "Thời gian", "Method": "Phương thức", "Path": "Đường dẫn",
+      "Model": "Mô hình", "Account": "Tài khoản", "Latency": "Độ trễ", "Client": "Máy khách",
+      "Kind": "Loại", "Use": "Cách dùng", "Errors": "Lỗi", "Aliases": "Bí danh",
+      "Built-in identities": "Danh tính có sẵn", "Admin key": "Khoá quản trị",
+      "Checking…": "Đang kiểm tra…", "No accounts": "Chưa có tài khoản",
+      "active": "đang hoạt động", "revoked": "đã thu hồi", "expired": "đã hết hạn",
+      "built-in": "có sẵn", "read only": "chỉ đọc", "never": "không",
+      "All keys": "Tất cả khoá", "Active only": "Chỉ đang hoạt động",
+      "Revoked": "Đã thu hồi", "Expired": "Đã hết hạn",
+      "Expiring within 7 days": "Hết hạn trong 7 ngày", "Key status": "Trạng thái khoá",
+      "Any key": "Mọi khoá", "Any account": "Mọi tài khoản", "Any status": "Mọi trạng thái",
+      "Hide polls": "Ẩn lượt polling", "Auto refresh": "Tự động làm mới",
+      "Active keys": "Khoá hoạt động", "Expiring soon": "Sắp hết hạn",
+      "Requests 24h": "Yêu cầu 24 giờ", "Errors, 24h": "Lỗi, 24 giờ",
+      "Purge": "Dọn dẹp", "Export": "Xuất", "Docs": "Tài liệu",
+      "none yet": "chưa dùng", "all keys, polls excluded": "mọi khoá, không tính polling",
+      "nothing expires this week": "tuần này không có khoá nào hết hạn",
+      "within 7 days — rotate them": "trong 7 ngày — nên xoay khoá",
+    },
+    zh: {
+      "Overview": "概览", "Accounts": "账户", "API Keys": "API 密钥", "Requests": "请求",
+      "Models": "模型", "Playground": "调试台", "Logs": "日志", "Settings": "设置",
+      "Manage": "管理", "System": "系统", "Sign out": "退出登录", "Sign in": "登录",
+      "Language": "语言", "Collapse sidebar": "收起侧边栏", "Expand sidebar": "展开侧边栏",
+      "Theme": "主题", "Follow system": "跟随系统", "Light": "浅色", "Dark": "深色",
+      "Search…": "搜索…", "Search keys by name, note or prefix": "按名称、备注或前缀搜索",
+      "Refresh": "刷新", "Export CSV": "导出 CSV", "Export JSON": "导出 JSON",
+      "Issue API key": "创建 API 密钥", "Rename": "重命名", "Rotate": "轮换",
+      "Revoke": "吊销", "Restore": "恢复", "Delete": "删除", "Cancel": "取消",
+      "Save": "保存", "Import": "导入", "Close": "关闭", "Run": "运行", "Clear": "清空",
+      "Copy": "复制", "Newer": "较新", "Older": "较早", "Name": "名称", "Key": "密钥",
+      "Status": "状态", "Total": "总数", "24h": "24 小时", "Errors 24h": "24 小时错误",
+      "Last request": "最近请求", "Expires": "到期", "Created": "创建时间", "Time": "时间",
+      "Method": "方法", "Path": "路径", "Model": "模型", "Account": "账户",
+      "Latency": "延迟", "Client": "客户端", "Kind": "类型", "Use": "用途",
+      "Errors": "错误", "Aliases": "别名", "Built-in identities": "内置身份",
+      "Admin key": "管理密钥", "Checking…": "检查中…", "No accounts": "暂无账户",
+      "active": "正常", "revoked": "已吊销", "expired": "已过期", "built-in": "内置",
+      "read only": "只读", "never": "永不", "All keys": "全部密钥", "Active only": "仅正常",
+      "Revoked": "已吊销", "Expired": "已过期", "Expiring within 7 days": "7 天内到期",
+      "Key status": "密钥状态", "Any key": "全部密钥", "Any account": "全部账户",
+      "Any status": "全部状态", "Hide polls": "隐藏轮询", "Auto refresh": "自动刷新",
+      "Active keys": "正常密钥", "Expiring soon": "即将到期",
+      "Requests 24h": "24 小时请求", "Errors, 24h": "错误，24 小时",
+      "Purge": "清理", "Export": "导出", "Docs": "文档",
+      "none yet": "从未使用", "all keys, polls excluded": "全部密钥，不含轮询",
+      "nothing expires this week": "本周没有密钥到期",
+      "within 7 days — rotate them": "7 天内 — 请轮换",
+    },
+  };
+
+  let lang = "en";
+  const tr = (s) => (lang !== "en" && I18N[lang] && I18N[lang][s]) || s;
+  const attrSources = new WeakMap();
+
+  function applyI18n(root = document.body) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const node of nodes) {
+      const parent = node.parentElement;
+      if (!parent || /^(SCRIPT|STYLE|TEXTAREA|CODE|PRE)$/.test(parent.tagName)) continue;
+      const raw = node.nodeValue || "";
+      if (!raw.trim()) continue;
+      if (lang === "en") {
+        if (node.i18nSrc != null && node.nodeValue !== node.i18nSrc) node.nodeValue = node.i18nSrc;
+        continue;
+      }
+      const dict = I18N[lang] || {};
+      const hit = dict[raw.trim()];
+      if (node.i18nSrc == null) node.i18nSrc = raw;
+      const base = node.i18nSrc;
+      const next = hit ? base.replace(base.trim(), hit) : base;
+      if (node.nodeValue !== next) node.nodeValue = next;
+    }
+    for (const el of root.querySelectorAll("[placeholder],[title],[aria-label]")) {
+      let saved = attrSources.get(el);
+      for (const attr of ["placeholder", "title", "aria-label"]) {
+        const v = el.getAttribute(attr);
+        if (!v) continue;
+        if (!saved) { saved = {}; attrSources.set(el, saved); }
+        if (saved[attr] == null) saved[attr] = v;
+        const hit = lang !== "en" && (I18N[lang] || {})[saved[attr].trim()];
+        el.setAttribute(attr, hit || saved[attr]);
+      }
+    }
+  }
+
+  // Dynamic panels re-render constantly, so re-translate after each DOM change.
+  let translating = false;
+  const i18nObserver = new MutationObserver(() => {
+    if (!translating && lang !== "en") translate();
+  });
+  function translate() {
+    if (translating) return;
+    translating = true;
+    i18nObserver.disconnect();
+    applyI18n();
+    i18nObserver.observe(document.body, {subtree: true, childList: true, characterData: true});
+    translating = false;
+  }
+  function applyLang(code, rerender = true) {
+    lang = I18N[code] ? code : "en";
+    store.set("muse2api.lang", lang === "en" ? "" : lang);
+    document.documentElement.lang = lang === "zh" ? "zh-CN" : lang;
+    if ($("#lang")) $("#lang").value = lang;
+    translate();
+    if (!rerender || $("#app").hidden) return;
+    $("#top-title").textContent = tr(PAGES[state.page]);
+    document.title = `${tr(PAGES[state.page])} · Muse2API`;
+    const loader = loaders[state.page];
+    if (loader) guarded(loader);
+  }
+
   const state = {
     page: "overview", window: "24h", offset: 0, limit: 50,
     accounts: [], keys: [], builtin: [], capabilities: {}, timer: null, modalOpen: false,
     active: [], debugIds: new Set(), quota: null, logCursor: 0, logSeen: 0, config: null,
-    models: [], playModel: "", playOut: "",
+    models: [], playModel: "", playOut: "", keyQuery: "", keyStatus: "all",
   };
 
   // ---- helpers ----
@@ -1412,50 +1585,125 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
       <td data-label="Last request" title="${esc(fullTime(u.last_request_at))}">${esc(u.last_request_at ? ago(u.last_request_at) : "none yet")}</td>`;
   }
 
-  async function loadKeys() {
-    await fetchKeys();
+  function keyStatus(k) {
+    return k.revoked ? "revoked" : k.expired ? "expired" : "active";
+  }
+  function keyFiltering() { return Boolean(state.keyQuery || state.keyStatus !== "all"); }
+  function visibleKeys() {
+    const q = (state.keyQuery || "").trim().toLowerCase();
+    const horizon = now() + 7 * 86400;
+    return state.keys.filter((k) => {
+      if (q) {
+        const hay = `${k.name || ""} ${k.note || ""} ${k.prefix || ""} ${k.id || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      const st = keyStatus(k);
+      if (state.keyStatus === "active") return st === "active";
+      if (state.keyStatus === "revoked") return st === "revoked";
+      if (state.keyStatus === "expired") return st === "expired";
+      if (state.keyStatus === "expiring") {
+        return st === "active" && Boolean(k.expires_at) && k.expires_at <= horizon;
+      }
+      return true;
+    });
+  }
+  function statusBadgeK(k) {
+    const st = keyStatus(k);
+    if (st === "active") return `<span class="badge b-ok">active</span>`;
+    if (st === "expired") return `<span class="badge b-warn">expired</span>`;
+    return `<span class="badge b-err">revoked</span>`;
+  }
+  function expiryCell(k) {
+    if (!k.expires_at) return `<td class="hide-sm muted" data-label="Expires">never</td>`;
+    const left = k.expires_at - now();
+    const when = esc(fullTime(k.expires_at));
+    if (left <= 0) return `<td class="hide-sm hot" data-label="Expires" title="${when}">expired</td>`;
+    const days = Math.ceil(left / 86400);
+    const cls = left <= 7 * 86400 ? "warn" : "";
+    return `<td class="hide-sm ${cls}" data-label="Expires" title="${when}">in ${days}d</td>`;
+  }
+  function renderKeys() {
     const all = [...state.keys, ...state.builtin].map((k) => k.usage || {});
     const sum = (f) => all.reduce((s, u) => s + (u[f] || 0), 0);
-    const active = state.keys.filter((k) => !k.revoked).length;
+    const active = state.keys.filter((k) => keyStatus(k) === "active").length;
+    const revoked = state.keys.filter((k) => k.revoked).length;
+    const expired = state.keys.filter((k) => keyStatus(k) === "expired").length;
+    const horizon = now() + 7 * 86400;
+    const expiring = state.keys.filter((k) => keyStatus(k) === "active"
+      && k.expires_at && k.expires_at <= horizon).length;
     const req24 = sum("requests_24h"), err24 = sum("errors_24h");
     $("#key-tiles").innerHTML = [
-      tile("Active keys", fmtNum(active), `${fmtNum(state.keys.length - active)} revoked`),
+      tile("Active keys", fmtNum(active), `${fmtNum(revoked)} revoked · ${fmtNum(expired)} expired`),
+      tile("Expiring soon", fmtNum(expiring), expiring ? "within 7 days — rotate them" : "nothing expires this week",
+        expiring ? "warn" : ""),
       tile("Requests 24h", fmtNum(req24), "all keys, polls excluded"),
-      tile("Errors, 24h", fmtNum(err24), req24 ? `${fmtPct(err24 / req24)} of requests` : "–", err24 && err24 / req24 >= 0.1 ? "bad" : ""),
+      tile("Errors, 24h", fmtNum(err24), req24 ? `${fmtPct(err24 / req24)} of requests` : "–",
+        err24 && err24 / req24 >= 0.1 ? "bad" : ""),
     ].join("");
-    const statusBadgeK = (k) => k.revoked ? `<span class="badge b-err">revoked</span>` : `<span class="badge b-ok">active</span>`;
-    const rows = state.keys.map((k) => `<tr class="click" data-id="${esc(k.id)}" tabindex="0" title="View requests for ${esc(k.name)}">
+    const shown = visibleKeys();
+    const rows = shown.map((k) => `<tr class="click" data-id="${esc(k.id)}" tabindex="0" title="View requests for ${esc(k.name)}">
         <td class="cell-name"><div><b>${esc(k.name)}</b>${k.note ? `<div class="sub" title="${esc(k.note)}">${esc(k.note)}</div>` : ""}</div><span class="m-status">${statusBadgeK(k)}</span></td>
         <td class="mono hide-sm" data-label="Key">${esc(k.prefix)}…</td>
         <td class="cell-status" data-label="Status">${statusBadgeK(k)}</td>
         ${usageCells(k.usage)}
-        <td class="hide-sm" data-label="Created" title="${esc(fullTime(k.created_at))}">${esc(ago(k.created_at))}</td>
+        ${expiryCell(k)}
         <td class="actions"><div class="row">
           <button class="btn sm" type="button" data-act="edit">Rename</button>
+          <button class="btn sm" type="button" data-act="rotate" title="Issue a new secret, keep the usage history">Rotate</button>
           <button class="btn sm" type="button" data-act="${k.revoked ? "unrevoke" : "revoke"}">${k.revoked ? "Restore" : "Revoke"}</button>
           <button class="btn sm danger" type="button" data-act="delete">Delete</button>
         </div></td>
-      </tr>`).join("") || `<tr><td colspan="9" class="empty" style="grid-column:1/-1">No keys yet. Click <b>Issue API key</b> to create the first one.</td></tr>`;
-    const builtin = state.builtin.map((b) => `<tr class="click builtin" data-id="${esc(b.id)}" tabindex="0" title="View requests for ${esc(b.name)}">
+      </tr>`).join("") || `<tr><td colspan="9" class="empty" style="grid-column:1/-1">${
+        state.keys.length ? "No key matches this filter." : "No keys yet. Issue the first one with the button above."
+      }</td></tr>`;
+    const builtin = keyFiltering() ? "" : state.builtin.map((b) => `<tr class="click builtin" data-id="${esc(b.id)}" tabindex="0" title="View requests for ${esc(b.name)}">
         <td class="cell-name"><div><b>${esc(b.name)}</b><div class="sub">${esc(BUILTIN_NOTE[b.id] || "")}</div></div><span class="m-status"><span class="badge b-mute">built-in</span></span></td>
         <td class="mono hide-sm muted" data-label="Key">env</td>
         <td class="cell-status" data-label="Status"><span class="badge b-mute">built-in</span></td>
         ${usageCells(b.usage)}
-        <td class="hide-sm muted" data-label="Created">–</td>
+        <td class="hide-sm muted" data-label="Expires">–</td>
         <td class="actions muted" style="font-size:12px">read only</td>
       </tr>`).join("");
     $("#keys-body").innerHTML = rows + (builtin ? `<tr class="sep"><td colspan="9">Built-in identities</td></tr>${builtin}` : "");
+    $("#k-count").textContent = keyFiltering()
+      ? `${shown.length} of ${state.keys.length} keys` : `${state.keys.length} keys`;
+  }
+  async function loadKeys() {
+    await fetchKeys();
+    renderKeys();
   }
 
+  function expiryInput(k) {
+    const v = k.expires_at ? new Date(k.expires_at * 1000).toISOString().slice(0, 10) : "";
+    return `<input type="date" id="kf-exp" value="${esc(v)}">`;
+  }
+  function readExpiry() {
+    const v = $("#kf-exp").value;
+    if (!v) return null;
+    const ts = new Date(`${v}T23:59:59`).getTime();
+    return Number.isFinite(ts) ? Math.floor(ts / 1000) : null;
+  }
   async function keyForm(title, k = {}, submit = "Save") {
     return modal({
       title,
       body: `<label class="f">Name<input type="text" id="kf-name" maxlength="100" value="${esc(k.name || "")}" placeholder="e.g. alice-laptop, n8n-prod" autocomplete="off"></label>
-        <label class="f">Note <span class="hint">optional — who uses it, and for what</span><input type="text" id="kf-note" maxlength="500" value="${esc(k.note || "")}" autocomplete="off"></label>`,
+        <label class="f">Note <span class="hint">optional — who uses it, and for what</span><input type="text" id="kf-note" maxlength="500" value="${esc(k.note || "")}" autocomplete="off"></label>
+        <label class="f">Expires <span class="hint">optional — leave empty for a key that never expires</span>${expiryInput(k)}</label>`,
       actions: [{label: "Cancel", value: null},
         {label: submit, primary: true, cls: "primary",
-         collect: () => ({name: $("#kf-name").value.trim(), note: $("#kf-note").value.trim()}),
+         collect: () => ({name: $("#kf-name").value.trim(), note: $("#kf-note").value.trim(),
+                          expires_at: readExpiry()}),
          check: (v) => v.name ? "" : "A name is required."}],
+    });
+  }
+  async function showSecret(title, apiKey) {
+    return modal({
+      title,
+      body: `<div class="warnbox"><b>Copy this key now.</b> This is the only time it is shown — the server stores only a hash and cannot show it again.</div>
+        <div class="secret"><input type="text" id="new-key" readonly value="${esc(apiKey)}" aria-label="New API key" spellcheck="false">
+        <button class="btn primary" type="button" id="copy-key">${icon("copy")}Copy</button></div>
+        <div class="usage-hint">Authorization: Bearer ${esc(apiKey.slice(0, 12))}…</div>`,
+      actions: [{label: "I have saved the key", value: null, primary: true, cls: ""}],
     });
   }
 
@@ -1464,14 +1712,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     if (!form) return;
     const res = await api("/admin/keys", {method: "POST", body: form});
     await loadKeys();
-    await modal({
-      title: `Issued key “${res.key.name}”`,
-      body: `<div class="warnbox"><b>Copy this key now.</b> This is the only time it is shown — the server stores only a hash and cannot show it again.</div>
-        <div class="secret"><input type="text" id="new-key" readonly value="${esc(res.api_key)}" aria-label="New API key" spellcheck="false">
-        <button class="btn primary" type="button" id="copy-key">${icon("copy")}Copy</button></div>
-        <div class="usage-hint">Authorization: Bearer ${esc(res.api_key.slice(0, 12))}…</div>`,
-      actions: [{label: "I have saved the key", value: null, primary: true, cls: ""}],
-    });
+    await showSecret(`Issued key “${res.key.name}”`, res.api_key);
   }));
   // The copy button lives inside the modal body, which is re-rendered per modal.
   $("#modal-body").addEventListener("click", async (e) => {
@@ -1502,11 +1743,18 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
       const ident = `<b>${esc(k.name)}</b> (<span class="mono">${esc(k.prefix)}…</span>)`;
       switch (btn.dataset.act) {
         case "edit": {
-          const form = await keyForm("Rename key", k);
+          const form = await keyForm("Edit key", k);
           if (!form) return;
           await api(path, {method: "PATCH", body: form});
           toast("Key updated");
           break;
+        }
+        case "rotate": {
+          if (!await confirmBox("Rotate key?", `<p>Issue a new secret for ${ident}. The current secret stops working immediately; usage history stays with the key.</p>`, "Rotate key")) return;
+          const res = await api(`${path}/rotate`, {method: "POST"});
+          await loadKeys();
+          await showSecret(`Rotated key “${res.key.name}”`, res.api_key);
+          return;
         }
         case "revoke":
           if (!await confirmBox("Revoke key?", `<p>Every request using ${ident} will get 401 until the key is restored.</p>`, "Revoke")) return;
@@ -1526,6 +1774,16 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
       await loadKeys();
     });
   });
+
+  // ---- key filters ----
+  function setKeyQuery(q) {
+    state.keyQuery = q;
+    $("#k-q-clear").hidden = !q;
+    renderKeys();
+  }
+  $("#k-q").addEventListener("input", (e) => setKeyQuery(e.target.value));
+  $("#k-q-clear").addEventListener("click", () => { $("#k-q").value = ""; setKeyQuery(""); $("#k-q").focus(); });
+  $("#k-status").addEventListener("change", (e) => { state.keyStatus = e.target.value; renderKeys(); });
 
   // ---- requests ----
   function fillFilterOptions() {
@@ -2140,13 +2398,32 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
       if (a.dataset.page === page) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     }
     for (const p of Object.keys(loaders)) $(`#page-${p}`).hidden = p !== page;
-    $("#top-title").textContent = PAGES[page];
-    document.title = `${PAGES[page]} · Muse2API`;
+    $("#top-title").textContent = tr(PAGES[page]);
+    document.title = `${tr(PAGES[page])} · Muse2API`;
     store.set("muse2api.page", page);
     setDrawer(false);
     guarded(loaders[page]);
   }
   window.addEventListener("hashchange", route);
+
+  // ---- sidebar rail ----
+  function applyCollapse(on) {
+    $("#app").classList.toggle("collapsed", on);
+    const btn = $("#side-collapse");
+    if (!btn) return;
+    btn.setAttribute("aria-expanded", String(!on));
+    btn.title = on ? "Expand sidebar" : "Collapse sidebar";
+    store.set("muse2api.sidebar", on ? "collapsed" : "");
+  }
+  $("#side-collapse").addEventListener("click",
+    () => applyCollapse(!$("#app").classList.contains("collapsed")));
+  $("#lang").addEventListener("change", (e) => applyLang(e.target.value));
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "[" || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || state.modalOpen || $("#app").hidden) return;
+    e.preventDefault();
+    applyCollapse(!$("#app").classList.contains("collapsed"));
+  });
 
   // ---- drawer (narrow screens) ----
   function setDrawer(open) {
@@ -2214,6 +2491,9 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     let n = 0;
     state.timer = setInterval(() => tick(++n), 5000);
   }
+
+  applyLang(store.get("muse2api.lang") || "en", false);
+  applyCollapse(store.get("muse2api.sidebar") === "collapsed");
 
   (async () => {
     try {

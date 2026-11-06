@@ -87,9 +87,13 @@ class AccountUpdate(BaseModel):
 class KeyCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     note: str = Field(default="", max_length=500)
+    # Unix seconds; omit or null for a key that never expires.
+    expires_at: float | None = Field(default=None, ge=0)
 
 
 class KeyUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     note: str | None = Field(default=None, max_length=500)
     revoked: bool | None = None
+    # Send null explicitly to remove an expiry; omit the field to leave it alone.
+    expires_at: float | None = Field(default=None, ge=0)

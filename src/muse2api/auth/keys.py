@@ -44,6 +44,14 @@ class ApiKey(BaseModel):
     last_used_at: float = 0.0
     revoked: bool = False
     note: str = ""
+    # Unix seconds; ``None`` means the key never expires.
+    expires_at: float | None = None
+
+    def expired(self, at: float | None = None) -> bool:
+        """True once ``expires_at`` has passed. A key without an expiry never expires."""
+        if self.expires_at is None:
+            return False
+        return (at if at is not None else time.time()) >= self.expires_at
 
     def public(self) -> dict:
         """Serialisable view without the hash."""
@@ -78,7 +86,7 @@ class KeyStore:
         found = None
         # No early exit, so timing does not reveal which (or whether a) key matched.
         for key in self._keys.values():
-            if hmac.compare_digest(digest, key.hash) and not key.revoked:
+            if hmac.compare_digest(digest, key.hash) and not key.revoked and not key.expired():
                 found = key
         return found
 
@@ -89,13 +97,28 @@ class KeyStore:
             key.last_used_at = now
             self._dirty = True
 
-    async def create(self, name: str, note: str = "") -> tuple[ApiKey, str]:
+    async def create(self, name: str, note: str = "",
+                     expires_at: float | None = None) -> tuple[ApiKey, str]:
         plaintext = generate_key()
         key = ApiKey(name=name, note=note, prefix=plaintext[:_DISPLAY_LEN],
-                     hash=hash_key(plaintext))
+                     hash=hash_key(plaintext), expires_at=expires_at)
         self._keys[key.id] = key
         await self.save()
         return key, plaintext
+
+    async def rotate(self, key: ApiKey) -> str:
+        """Replace a key's secret in place: same id, name and note, a new hash.
+
+        Returns the new plaintext (the only time it can be read); the previous
+        secret stops authenticating immediately.
+        """
+        plaintext = generate_key()
+        key.prefix = plaintext[:_DISPLAY_LEN]
+        key.hash = hash_key(plaintext)
+        key.revoked = False
+        key.last_used_at = 0.0
+        await self.save()
+        return plaintext
 
     async def remove(self, key_id: str) -> bool:
         if self._keys.pop(key_id, None) is None:

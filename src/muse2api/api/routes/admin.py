@@ -254,7 +254,8 @@ async def list_keys(svc: Services = Depends(get_services)) -> dict:
     """Stored keys plus the built-in identities, each with request counts from the log."""
     usage = {r["key_id"]: r for r in (await svc.requests.key_usage())["data"]}
     return {
-        "data": [{**k.public(), "usage": _usage(usage.get(k.id))} for k in svc.keys.all()],
+        "data": [{**k.public(), "expired": k.expired(), "usage": _usage(usage.get(k.id))}
+                 for k in svc.keys.all()],
         "builtin": [{"id": b, "name": b, "usage": _usage(usage.get(b))} for b in BUILTIN_KEYS],
     }
 
@@ -267,7 +268,7 @@ async def key_usage(svc: Services = Depends(get_services)) -> dict:
 
 @router.post("/keys")
 async def create_key(body: KeyCreate, svc: Services = Depends(get_services)) -> dict:
-    key, plaintext = await svc.keys.create(body.name.strip(), body.note)
+    key, plaintext = await svc.keys.create(body.name.strip(), body.note, body.expires_at)
     # The only time the plaintext key is ever returned.
     return {"key": key.public(), "api_key": plaintext}
 
@@ -281,8 +282,19 @@ async def update_key(key_id: str, body: KeyUpdate, svc: Services = Depends(get_s
         key.note = body.note
     if body.revoked is not None:
         key.revoked = body.revoked
+    # An explicit null clears the expiry; omitting the field leaves it untouched.
+    if "expires_at" in body.model_fields_set:
+        key.expires_at = body.expires_at
     await svc.keys.save()
     return {"key": key.public()}
+
+
+@router.post("/keys/{key_id}/rotate")
+async def rotate_key(key_id: str, svc: Services = Depends(get_services)) -> dict:
+    """Issue a fresh secret for an existing key, keeping its id, name, note and usage."""
+    key = _get_key(svc, key_id)
+    plaintext = await svc.keys.rotate(key)
+    return {"key": key.public(), "api_key": plaintext}
 
 
 @router.delete("/keys/{key_id}")
