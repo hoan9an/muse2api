@@ -942,9 +942,10 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
         continue;
       }
       const dict = I18N[lang] || {};
-      const hit = dict[raw.trim()];
       if (node.i18nSrc == null) node.i18nSrc = raw;
+      // Look the phrase up from the original English, so switching vi -> zh works.
       const base = node.i18nSrc;
+      const hit = dict[base.trim()];
       const next = hit ? base.replace(base.trim(), hit) : base;
       if (node.nodeValue !== next) node.nodeValue = next;
     }
