@@ -10,10 +10,12 @@ import asyncio
 import json
 import re
 import time
+import uuid
 from typing import Any
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from ..core.context import current_request_id
 from ..services.request_log import RequestLog, current_record
 
 # Public media downloads are not API calls worth logging.
@@ -74,8 +76,14 @@ class RequestLogMiddleware:
         started = time.perf_counter()
         # Route handlers and auth set request.state.*, which lives in this dict.
         state: dict[str, Any] = scope.setdefault("state", {})
+        # Correlates the response, the error body and the request-log row.
+        request_id = "req_" + uuid.uuid4().hex[:20]
+        state["request_id"] = request_id
+        # Deeper layers (routes, drivers) read it without a parameter.
+        current_request_id.set(request_id)
         poll = _POLL_RE.match(path) if scope["method"] == "GET" else None
         record: dict[str, Any] = {
+            "request_id": request_id,
             "ts": time.time(),
             "method": scope["method"],
             "path": path,
@@ -93,7 +101,11 @@ class RequestLogMiddleware:
         async def send_wrapper(message: Message) -> None:
             if message["type"] == "http.response.start":
                 record["status_code"] = message["status"]
-                for k, v in message.get("headers", []):
+                headers = list(message.get("headers", []))
+                if not any(k.lower() == b"x-request-id" for k, _ in headers):
+                    headers.append((b"x-request-id", request_id.encode()))
+                    message["headers"] = headers
+                for k, v in headers:
                     if k.lower() == b"content-type" and v.startswith(b"text/event-stream"):
                         record["stream"] = 1
             elif message["type"] == "http.response.body":

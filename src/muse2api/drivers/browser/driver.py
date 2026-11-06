@@ -26,6 +26,7 @@ from urllib.parse import urlsplit
 
 from ...accounts.model import Account
 from ...config import Settings
+from ...core.context import current_request_id
 from ...core.prompt import followup_text
 from ...errors import (
     Muse2APIError,
@@ -49,6 +50,7 @@ from ..base import (
 from . import dom
 from .cdp import CDPError, CDPSession
 from .chromium import ChromiumProcess, find_chromium
+from .evidence import Evidence
 
 log = logging.getLogger(__name__)
 
@@ -117,6 +119,15 @@ class BrowserDriver(MuseDriver):
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
+        # Every upstream location comes from MUSE2API_SITE_URL, so a fixture server
+        # can stand in for muse.ai (see upstream/muse.py:Endpoints).
+        self.endpoints = muse.Endpoints.from_base(settings.site_url)
+        self.evidence = Evidence(
+            settings.debug_dir,
+            enabled=settings.debug_capture,
+            max_dirs=settings.debug_capture_max_dirs,
+            retention_days=settings.debug_capture_retention_days,
+        )
         self._chromium: ChromiumProcess | None = None
         self._browser: CDPSession | None = None
         # One browser context (cookie jar) per account, holding up to
@@ -218,6 +229,19 @@ class BrowserDriver(MuseDriver):
         async with self._tab_cond:
             self._tab_cond.notify_all()
 
+    # ------------------------------------------------------------ diagnostics
+    async def _capture(self, tab: _Tab, reason: str, exc: BaseException) -> None:
+        """Save what the page looked like when a request failed; a no-op unless
+        ``MUSE2API_DEBUG_CAPTURE`` is on."""
+        await self.evidence.capture(tab.session, reason=reason, meta={
+            "request_id": current_request_id.get(),
+            "account_id": tab.account_id,
+            "thread_url": tab.thread_url,
+            "hint": tab.hint,
+            "warm": tab.warm,
+            "error": f"{type(exc).__name__}: {exc}"[:500],
+        })
+
     async def _context(self, account: Account) -> str:
         async with self._ctx_lock:
             if ctx := self._contexts.get(account.id):
@@ -246,7 +270,8 @@ class BrowserDriver(MuseDriver):
             await session.send(f"{domain}.enable")
         await session.send("Emulation.setFocusEmulationEnabled", {"enabled": True})
         await session.send("Page.setWebLifecycleState", {"state": "active"})
-        await self._set_cookies(session, account)
+        await self._set_cookies(session, account, domain=self.endpoints.cookie_domain,
+                                url=f"{self.endpoints.site}/")
         return _Tab(account.id, context_id, target_id, session)
 
     async def _close_tab(self, tab: _Tab) -> None:
@@ -276,7 +301,8 @@ class BrowserDriver(MuseDriver):
                     )
 
     @staticmethod
-    async def _set_cookies(session: CDPSession, account: Account) -> None:
+    async def _set_cookies(session: CDPSession, account: Account, *,
+                           domain: str = ".muse.ai", url: str = "https://muse.ai/") -> None:
         floor = time.time() + 3600
         for name, value in account.cookies.items():
             if not value:
@@ -285,7 +311,7 @@ class BrowserDriver(MuseDriver):
             params = {
                 "name": name,
                 "value": value,
-                "domain": ".muse.ai",
+                "domain": domain,
                 "path": "/",
                 "secure": True,
                 # Never hand Chromium a past expiry; it would drop the cookie silently.
@@ -294,7 +320,7 @@ class BrowserDriver(MuseDriver):
             if name.startswith("__Host-"):
                 # Chromium rejects __Host- cookies that carry a Domain attribute.
                 params.pop("domain")
-                params["url"] = "https://muse.ai/"
+                params["url"] = url
             await session.send("Network.setCookie", params)
 
     @staticmethod
@@ -384,7 +410,7 @@ class BrowserDriver(MuseDriver):
         self._forget(tab)
         if await self._soft_new_thread(tab):
             return
-        await tab.session.send("Page.navigate", {"url": muse.NEW_THREAD_URL})
+        await tab.session.send("Page.navigate", {"url": self.endpoints.new_thread})
         deadline = time.monotonic() + self.settings.page_ready_timeout
         state: dict = {}
         while time.monotonic() < deadline:
@@ -551,6 +577,7 @@ class BrowserDriver(MuseDriver):
             await self._send(tab, prompt)
             return tab, base
         except CDPError as exc:
+            await self._capture(tab, "cdp", exc)
             await self._close_tab(tab)
             await self._checkin(tab)
             raise UpstreamError(f"browser error: {exc}") from exc
@@ -597,7 +624,11 @@ class BrowserDriver(MuseDriver):
                     if (not st.get("generating") and stable >= STABLE_POLLS_DONE) or stable >= STABLE_POLLS_FORCE:
                         finished = True
                         return
+        except (UpstreamRefused, UpstreamTimeout) as exc:
+            await self._capture(tab, "upstream", exc)
+            raise
         except CDPError as exc:
+            await self._capture(tab, "cdp", exc)
             await self._close_tab(tab)
             raise UpstreamError(f"browser error: {exc}") from exc
         finally:
@@ -840,7 +871,11 @@ class BrowserDriver(MuseDriver):
             base = await self._prepare(tab, prompt, images)
             att = await self._wait_media(tab, base, kind, timeout, on_progress, cancel)
             return await self._download(tab, att, kind)
+        except UpstreamError as exc:
+            await self._capture(tab, f"{kind}-failed", exc)
+            raise
         except CDPError as exc:
+            await self._capture(tab, "cdp", exc)
             await self._close_tab(tab)
             raise UpstreamError(f"browser error: {exc}") from exc
         finally:
@@ -864,7 +899,7 @@ class BrowserDriver(MuseDriver):
 
     # ------------------------------------------------------------ session
     async def renew_session(self, account: Account) -> SessionInfo:
-        info = await muse.renew_session(account.cookies)
+        info = await muse.renew_session(account.cookies, site=self.endpoints)
         # Cookies live in the account's browser context, so writing the rotated ones
         # through any open tab updates every tab and keeps hot and warm pages alive.
         async with self._tab_cond:
@@ -876,7 +911,9 @@ class BrowserDriver(MuseDriver):
                 "cookie_expires": {**account.cookie_expires, **info.cookie_expires},
             })
             with contextlib.suppress(CDPError, TimeoutError):
-                await self._set_cookies(live[0].session, rotated)
+                await self._set_cookies(live[0].session, rotated,
+                                        domain=self.endpoints.cookie_domain,
+                                        url=f"{self.endpoints.site}/")
                 return info
         # Otherwise retire the account's tabs so new ones load the rotated cookies; a
         # tab in the middle of a request is closed when it is checked back in.

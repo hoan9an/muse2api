@@ -12,16 +12,65 @@ import os
 import time
 import uuid
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 import httpx
 
 from ..drivers.base import SessionInfo
 from ..errors import UpstreamAuthError, UpstreamError
 
-SITE = "https://muse.ai"
-NEW_THREAD_URL = f"{SITE}/thread/new"
-SESSION_API = f"{SITE}/api/session"
-VM_WAKE_API = f"{SITE}/api/hatch/vm/wake"
+DEFAULT_SITE = "https://muse.ai"
+
+
+@dataclass(frozen=True)
+class Endpoints:
+    """URLs of one muse.ai deployment (``MUSE2API_SITE_URL``).
+
+    Everything upstream-specific that is a *location* lives here, so a local fixture
+    server can stand in for the real site: selectors and the browser driver can then be
+    exercised without an account and without touching muse.ai.
+    """
+
+    site: str = DEFAULT_SITE
+
+    @classmethod
+    def from_base(cls, site_url: str | None) -> Endpoints:
+        """Normalise a configured base URL: blank means the default site, and a bare
+        host (``muse.test``) gets https, so both env forms work."""
+        base = (site_url or DEFAULT_SITE).strip().rstrip("/")
+        if not base:
+            base = DEFAULT_SITE
+        if not base.startswith(("http://", "https://")):
+            base = "https://" + base
+        return cls(site=base)
+
+    @property
+    def host(self) -> str:
+        return urlsplit(self.site).hostname or "muse.ai"
+
+    @property
+    def cookie_domain(self) -> str:
+        return "." + self.host
+
+    @property
+    def new_thread(self) -> str:
+        return f"{self.site}/thread/new"
+
+    @property
+    def session_api(self) -> str:
+        return f"{self.site}/api/session"
+
+    @property
+    def vm_wake_api(self) -> str:
+        return f"{self.site}/api/hatch/vm/wake"
+
+
+# Backwards-compatible defaults for callers that do not carry an ``Endpoints``.
+SITE = DEFAULT_SITE
+NEW_THREAD_URL = Endpoints().new_thread
+SESSION_API = Endpoints().session_api
+VM_WAKE_API = Endpoints().vm_wake_api
 
 # Cookies that together make up a logged-in session.
 # Cookies an account must have. As of 2026-10 muse.ai no longer sets hatch_gw /
@@ -85,6 +134,7 @@ async def renew_session(
     poll_s: float = WAKE_POLL_SECONDS,
     sleep: Callable[[float], Awaitable[object]] = asyncio.sleep,
     clock: Callable[[], float] = time.monotonic,
+    site: str | Endpoints | None = None,
 ) -> SessionInfo:
     """Hit the session endpoint, which rotates short-lived cookies via Set-Cookie,
     and optionally wake the account's cloud workspace so the first request is fast.
@@ -96,16 +146,17 @@ async def renew_session(
     ``meta["vm_wake_ok"]`` is True for RUNNING, False for any other state seen, and
     None when no state was seen. ``meta["vm_wake_http"]`` records the wake's own
     status code (or exception name) for diagnosis."""
+    endpoints = site if isinstance(site, Endpoints) else Endpoints.from_base(site)
     headers = {
         "User-Agent": USER_AGENT,
-        "Origin": SITE,
-        "Referer": NEW_THREAD_URL,
+        "Origin": endpoints.site,
+        "Referer": endpoints.new_thread,
         "Accept": "application/json",
     }
     jar = dict(cookies)
     expires: dict[str, int] = {}
     async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
-        resp = await client.get(SESSION_API, headers={"Cookie": cookie_header(jar)})
+        resp = await client.get(endpoints.session_api, headers={"Cookie": cookie_header(jar)})
         if resp.status_code in (401, 403):
             raise UpstreamAuthError(f"session rejected by upstream (HTTP {resp.status_code})")
         if resp.status_code >= 400:
@@ -121,7 +172,7 @@ async def renew_session(
         if wake_vm and meta["vm_id"] and meta["vm_state"] != "DISABLED":
             try:
                 w = await client.post(
-                    VM_WAKE_API,
+                    endpoints.vm_wake_api,
                     headers={"Cookie": cookie_header(jar)},
                     json={"vm_id": meta["vm_id"], "retry_count": 0,
                           "connect_attempt_id": str(uuid.uuid4())},
@@ -132,7 +183,7 @@ async def renew_session(
             # The wake's own answer says little: muse.ai answers 403 to a wake for a
             # VM that is already RUNNING. Judge by the state the session reports.
             meta["vm_state_after"] = await _confirm_running(
-                client, jar, expires, timeout=timeout,
+                client, jar, expires, endpoints, timeout=timeout,
                 confirm_s=wake_confirm_seconds() if confirm_s is None else confirm_s,
                 poll_s=poll_s, sleep=sleep, clock=clock)
             # None when no poll answered: unknown is not evidence the VM is down.
@@ -144,7 +195,8 @@ async def renew_session(
 
 
 async def _confirm_running(
-    client: httpx.AsyncClient, jar: dict[str, str], expires: dict[str, int], *,
+    client: httpx.AsyncClient, jar: dict[str, str], expires: dict[str, int],
+    endpoints: Endpoints, *,
     timeout: float, confirm_s: float, poll_s: float,
     sleep: Callable[[float], Awaitable[object]], clock: Callable[[], float],
 ) -> str | None:
@@ -155,7 +207,8 @@ async def _confirm_running(
     while True:
         remaining = deadline - clock()
         try:
-            resp = await client.get(SESSION_API, headers={"Cookie": cookie_header(jar)},
+            resp = await client.get(endpoints.session_api,
+                                    headers={"Cookie": cookie_header(jar)},
                                     timeout=max(1.0, min(timeout, remaining)))
         except httpx.HTTPError:
             resp = None

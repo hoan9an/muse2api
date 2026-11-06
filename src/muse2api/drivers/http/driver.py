@@ -42,4 +42,6 @@ class HttpDriver(MuseDriver):
         yield ""  # pragma: no cover  (makes this an async generator)
 
     async def renew_session(self, account: Account) -> SessionInfo:
-        return await muse.renew_session(account.cookies)
+        return await muse.renew_session(
+            account.cookies, site=muse.Endpoints.from_base(self.settings.site_url)
+        )

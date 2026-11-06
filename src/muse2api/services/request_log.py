@@ -27,7 +27,8 @@ log = logging.getLogger(__name__)
 current_record: ContextVar[dict[str, Any] | None] = ContextVar("current_record", default=None)
 
 COLUMNS = ("ts", "method", "path", "model", "key_id", "key_name", "account_id", "status_code",
-           "latency_ms", "stream", "poll", "error", "client_ip", "user_agent", "task_id")
+           "latency_ms", "stream", "poll", "error", "client_ip", "user_agent", "task_id",
+           "request_id")
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS requests (
@@ -55,7 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_requests_task ON requests (task_id);
 """
 
 # Columns added after the first release; created on open when missing.
-_ADDED_COLUMNS = {"task_status": "TEXT", "task_ms": "INTEGER"}
+_ADDED_COLUMNS = {"task_status": "TEXT", "task_ms": "INTEGER", "request_id": "TEXT"}
 
 # A request failed if it got an HTTP error or its async task failed later.
 FAILED = "(status_code >= 400 OR task_status = 'failed')"
@@ -103,6 +104,8 @@ class RequestLog:
             for col, kind in _ADDED_COLUMNS.items():
                 if col not in have:
                     conn.execute(f"ALTER TABLE requests ADD COLUMN {col} {kind}")
+            # After the ALTERs: an old table has no request_id column yet.
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_requests_request ON requests (request_id)")
             self._conn = conn
         return self._conn
 

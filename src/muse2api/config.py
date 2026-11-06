@@ -45,6 +45,10 @@ class Settings(BaseSettings):
         default=14, description="Days generated media files are kept in data/media. "
         "0 disables automatic cleanup."
     )
+    quota_history_retention_days: float = Field(
+        default=30, description="Days of weekly-quota samples kept in data/quota.db for the "
+        "dashboard trend and the burn-rate forecast."
+    )
 
     # --- upstream driver ---
     driver: DriverName = "mock"
@@ -92,6 +96,30 @@ class Settings(BaseSettings):
     account_max_concurrency: int = 4
     account_cooldown: float = 120.0
     max_failover: int = 2
+    affinity_ttl: float = Field(
+        default=3600,
+        description="How long a conversation stays pinned to the account that served it "
+        "(affinity strategy); a hit renews the binding. 0 disables expiry.",
+    )
+    quota_low_threshold_pct: float = Field(
+        default=85,
+        description="Weekly quota percentage above which an account is only given "
+        "conversations already bound to it; 0 disables the check.",
+    )
+
+    # --- diagnostics ---
+    debug_capture: bool = Field(
+        default=False,
+        description="On a browser-driver failure, save a screenshot, the page URL and the "
+        "page text under data/debug/<id>/ so a broken selector can be fixed from evidence. "
+        "Off by default: a capture can contain account content.",
+    )
+    debug_capture_max_dirs: int = Field(
+        default=50, description="Most failure captures kept under data/debug."
+    )
+    debug_capture_retention_days: float = Field(
+        default=3, description="Days a failure capture is kept under data/debug."
+    )
 
     # --- background removal (images with background="transparent") ---
     matting_model: str = Field(
@@ -136,6 +164,14 @@ class Settings(BaseSettings):
     @property
     def requests_db(self) -> Path:
         return self.data_dir / "requests.db"
+
+    @property
+    def debug_dir(self) -> Path:
+        return self.data_dir / "debug"
+
+    @property
+    def quota_db(self) -> Path:
+        return self.data_dir / "quota.db"
 
     @property
     def profile_dir(self) -> Path:

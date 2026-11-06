@@ -18,6 +18,7 @@ from collections.abc import AsyncIterator, Iterable
 from contextlib import asynccontextmanager
 from typing import Protocol
 
+from ..core.quota import used_pct
 from ..errors import NoAccountAvailable, UpstreamAuthError, UpstreamQuotaError, UpstreamTimeout
 from .model import Account, AccountStatus
 from .store import AccountStore
@@ -77,26 +78,78 @@ class LRUStrategy:
         return min(candidates, key=lambda a: a.last_used_at)
 
 
+def _quota_used_pct(acc: Account) -> float | None:
+    """Weekly quota usage as a percentage, from the snapshot a driver stored in ``meta``.
+
+    ``None`` means "no reading": an account without a quota snapshot must never be
+    penalised, or the pool would change behaviour just because a driver lacks quota
+    support.
+    """
+    return used_pct(acc.meta.get("quota"))
+
+
 class AffinityStrategy:
     """Sticks a hint (e.g. conversation id / user id) to the account that served it last,
-    so a driver can reuse warm browser tabs or upstream threads. Falls back to LRU."""
+    so a driver can reuse warm browser tabs or upstream threads. Falls back to LRU.
 
-    def __init__(self, max_entries: int = 4096) -> None:
-        self._map: dict[str, str] = {}
+    A binding expires after ``ttl`` seconds and a hit renews it, so a conversation that
+    comes back much later is not pinned to an account whose session has since gone
+    invalid. An account at or above ``low_quota_pct`` weekly usage keeps the
+    conversations already bound to it but is skipped for new ones, which is the only
+    place the pool can steer load away from a nearly exhausted account.
+    """
+
+    def __init__(self, max_entries: int = 4096, ttl: float = 3600.0,
+                 low_quota_pct: float = 85.0) -> None:
+        self._map: dict[str, tuple[str, float]] = {}
         self._max = max_entries
+        self._ttl = ttl
+        self._low_quota_pct = low_quota_pct
         self._fallback = LRUStrategy()
 
     def choose(self, candidates: list[Account], hint: str | None) -> Account:
-        if hint and (acc_id := self._map.get(hint)):
-            for acc in candidates:
-                if acc.id == acc_id:
-                    return acc
-        acc = self._fallback.choose(candidates, hint)
+        now = time.time()
+        if hint and (entry := self._map.get(hint)):
+            acc_id, bound_at = entry
+            if self._ttl <= 0 or now - bound_at < self._ttl:
+                for acc in candidates:
+                    if acc.id == acc_id:
+                        self._map[hint] = (acc_id, now)  # a hit renews the binding
+                        return acc
+            self._map.pop(hint, None)
+        acc = self._fallback.choose(self._with_quota_headroom(candidates), hint)
         if hint:
             if len(self._map) >= self._max:
-                self._map.pop(next(iter(self._map)))
-            self._map[hint] = acc.id
+                # Evict the least recently renewed binding, not an arbitrary oldest key.
+                self._map.pop(min(self._map, key=lambda key: self._map[key][1]), None)
+            self._map[hint] = (acc.id, now)
         return acc
+
+    def _with_quota_headroom(self, candidates: list[Account]) -> list[Account]:
+        if self._low_quota_pct <= 0:
+            return candidates
+        roomy = [a for a in candidates
+                 if (pct := _quota_used_pct(a)) is None or pct < self._low_quota_pct]
+        return roomy or candidates
+
+    def configure(self, *, ttl: float | None = None,
+                  low_quota_pct: float | None = None) -> None:
+        """Apply live settings; existing bindings keep their current age."""
+        if ttl is not None:
+            self._ttl = float(ttl)
+        if low_quota_pct is not None:
+            self._low_quota_pct = float(low_quota_pct)
+
+    def forget(self, account_id: str) -> None:
+        """Drop every binding to ``account_id`` (the account was removed)."""
+        for hint in [h for h, (acc_id, _) in self._map.items() if acc_id == account_id]:
+            self._map.pop(hint, None)
+
+
+def _make_strategy(name: str, affinity_ttl: float, low_quota_pct: float) -> Strategy:
+    if name == "affinity":
+        return AffinityStrategy(ttl=affinity_ttl, low_quota_pct=low_quota_pct)
+    return STRATEGIES[name]()
 
 
 STRATEGIES: dict[str, type] = {
@@ -126,9 +179,11 @@ class AccountPool:
         max_concurrency: int = 1,
         cooldown: float = 120.0,
         acquire_timeout: float = 60.0,
+        affinity_ttl: float = 3600.0,
+        quota_low_threshold_pct: float = 85.0,
     ) -> None:
         self.store = store
-        self.strategy: Strategy = STRATEGIES[strategy]()
+        self.strategy: Strategy = _make_strategy(strategy, affinity_ttl, quota_low_threshold_pct)
         self.max_concurrency = max(1, max_concurrency)
         self.cooldown = cooldown
         self.acquire_timeout = acquire_timeout
@@ -160,6 +215,8 @@ class AccountPool:
     async def remove(self, account_id: str) -> bool:
         async with self._cond:
             removed = self._accounts.pop(account_id, None) is not None
+            if removed and (forget := getattr(self.strategy, "forget", None)):
+                forget(account_id)
         if removed:
             await self.persist()
         return removed
@@ -232,13 +289,24 @@ class AccountPool:
                 if remaining <= 0 or (not busy and back_in > remaining):
                     # Nothing frees up before the deadline; say why instead of waiting in vain.
                     reason = "busy" if busy else "cooling down"
-                    raise NoAccountAvailable(f"all accounts are {reason}, try again later")
+                    raise NoAccountAvailable(f"all accounts are {reason}, try again later",
+                                             retry_after=back_in)
                 # Wake on release, or when the soonest cooldown ends (nothing notifies that).
                 wait = remaining if back_in is None else min(remaining, max(back_in, 0.05))
                 try:
                     await asyncio.wait_for(self._cond.wait(), timeout=wait)
                 except asyncio.TimeoutError:
                     continue
+
+    async def reconfigure(self, *, cooldown: float, max_concurrency: int,
+                          affinity_ttl: float, quota_low_threshold_pct: float) -> None:
+        """Apply live-editable pool settings and wake waiters so they re-check."""
+        async with self._cond:
+            self.cooldown = float(cooldown)
+            self.max_concurrency = max(1, int(max_concurrency))
+            if isinstance(self.strategy, AffinityStrategy):
+                self.strategy.configure(ttl=affinity_ttl, low_quota_pct=quota_low_threshold_pct)
+            self._cond.notify_all()
 
     async def release(self, account: Account, error: BaseException | None = None) -> None:
         async with self._cond:

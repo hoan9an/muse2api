@@ -53,6 +53,13 @@ class NoAccountAvailable(Muse2APIError):
     error_type = "server_error"
     code = "no_account_available"
 
+    def __init__(self, message: str = "", *, retry_after: float | None = None) -> None:
+        super().__init__(message)
+        # Seconds until a pooled account is usable again, when known. The app layer
+        # turns this into a Retry-After header so clients back off instead of
+        # retrying into a pool that is still cooling down.
+        self.retry_after = retry_after
+
 
 # --- upstream (muse.ai) ---
 class UpstreamError(Muse2APIError):
