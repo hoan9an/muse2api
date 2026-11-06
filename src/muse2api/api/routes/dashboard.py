@@ -1,7 +1,8 @@
 """Admin dashboard: a single self-contained HTML page.
 
-The page itself is public; it asks for the admin key in the browser and calls
-``/admin/*`` with it, so serving the HTML reveals nothing.
+The page itself is public and reveals nothing. It exchanges the admin key once at
+``POST /admin/session`` for an HttpOnly cookie and then calls ``/admin/*`` with
+that; the key is never kept in browser storage.
 """
 
 from __future__ import annotations

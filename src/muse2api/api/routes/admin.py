@@ -6,11 +6,14 @@ extension for one-click cookie import (served by ``GET /admin/extension.zip``).
 
 from __future__ import annotations
 
+import asyncio
+import csv
 import io
+import json
 import time
 import zipfile
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
@@ -19,8 +22,10 @@ from ... import __version__
 from ...accounts.keepalive import renew_account
 from ...accounts.model import Account, AccountStatus
 from ...auth.keys import ApiKey
+from ...core.logbuffer import LOG_BUFFER
 from ...errors import InvalidRequest, Muse2APIError, NotFound
 from ...services.container import Services
+from ...services.request_log import COLUMNS as LOG_COLUMNS
 from ...upstream.muse import missing_session_cookies
 from ..deps import get_services, require_admin_key
 from ..schemas import AccountCreate, AccountsImportRequest, AccountUpdate, KeyCreate, KeyUpdate
@@ -83,6 +88,11 @@ def _get(svc: Services, account_id: str) -> Account:
     if acc is None:
         raise NotFound(f"account '{account_id}' not found")
     return acc
+
+
+def _evidence(svc: Services) -> Any:
+    """The browser driver's capture store, or None for drivers that save nothing."""
+    return getattr(svc.driver, "evidence", None)
 
 
 @router.get("/status")
@@ -182,6 +192,8 @@ async def account_quota(account_id: str, refresh: bool = False,
     snapshot = await svc.driver.quota(acc)
     acc.meta["quota"] = {"checked_at": time.time(), **snapshot}
     await svc.pool.upsert(acc)
+    # Every reading becomes a point in the trend; a repeat within a minute is dropped.
+    await svc.quota.record(acc.id, acc.meta["quota"])
     return {"account_id": acc.id, "quota": acc.meta["quota"]}
 
 
@@ -276,6 +288,18 @@ async def delete_key(key_id: str, svc: Services = Depends(get_services)) -> dict
     return {"deleted": key_id}
 
 
+# ---- process log ----
+@router.get("/process-log")
+async def process_log(
+    after: int = Query(default=0, ge=0),
+    limit: int = Query(default=200, ge=1, le=1000),
+    level: Literal["debug", "info", "warning", "error"] | None = None,
+) -> dict:
+    """Newest in-memory log lines; ``after`` is the id cursor the panel polls with."""
+    return {"items": LOG_BUFFER.records(after=after, limit=limit, level=level),
+            "next": LOG_BUFFER.latest_id()}
+
+
 # ---- request log ----
 @router.get("/requests")
 async def list_requests(
@@ -292,6 +316,98 @@ async def list_requests(
     return await svc.requests.query(key_id=key_id, account_id=account_id, status=status,
                                     path=path, since=since, hide_polls=hide_polls,
                                     limit=limit, offset=offset)
+
+
+def _export_payload(rows: list[dict], fmt: str) -> tuple[bytes, str, str]:
+    if fmt == "json":
+        return (json.dumps(rows, ensure_ascii=False, indent=2).encode(),
+                "application/json", "json")
+    columns = [*LOG_COLUMNS, "id", "task_status", "task_ms"]
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=columns, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(rows)
+    return buf.getvalue().encode(), "text/csv; charset=utf-8", "csv"
+
+
+@router.get("/requests/export")
+async def export_requests(
+    format: Literal["csv", "json"] = "csv",
+    key_id: str | None = None,
+    account_id: str | None = None,
+    status: Literal["2xx", "3xx", "4xx", "5xx", "failed"] | None = None,
+    path: str | None = None,
+    since: float | None = Query(default=None, description="Unix seconds"),
+    hide_polls: bool = False,
+    limit: int = Query(default=5000, ge=1, le=50000),
+    svc: Services = Depends(get_services),
+) -> Response:
+    """The request log as a file, filtered exactly like ``GET /admin/requests``."""
+    rows = (await svc.requests.query(key_id=key_id, account_id=account_id, status=status,
+                                     path=path, since=since, hide_polls=hide_polls,
+                                     limit=limit, offset=0))["data"]
+    body, media_type, ext = _export_payload(rows, format)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    return Response(body, media_type=media_type, headers={
+        "Content-Disposition": f'attachment; filename="muse2api-requests-{stamp}.{ext}"',
+    })
+
+
+# ---- failure evidence (browser driver) ----
+@router.get("/debug")
+async def list_debug_captures(limit: int = Query(default=50, ge=1, le=200),
+                              svc: Services = Depends(get_services)) -> dict:
+    """Failure captures under ``data/debug``; empty for drivers that save none."""
+    store = _evidence(svc)
+    if store is None:
+        return {"data": []}
+    return {"data": await asyncio.to_thread(store.captures, limit)}
+
+
+@router.get("/debug/{request_id}")
+async def get_debug_capture(request_id: str,
+                            svc: Services = Depends(get_services)) -> dict:
+    store = _evidence(svc)
+    capture = await asyncio.to_thread(store.load, request_id) if store else None
+    if capture is None:
+        raise NotFound(f"no failure capture for request '{request_id}'")
+    return capture
+
+
+@router.get("/debug/{request_id}/screenshot")
+async def get_debug_screenshot(request_id: str,
+                               svc: Services = Depends(get_services)) -> Response:
+    store = _evidence(svc)
+    data = await asyncio.to_thread(store.screenshot, request_id) if store else None
+    if data is None:
+        raise NotFound(f"no screenshot for request '{request_id}'")
+    return Response(data, media_type="image/png")
+
+
+# ---- in-flight requests ----
+@router.get("/active-requests")
+async def list_active_requests(svc: Services = Depends(get_services)) -> dict:
+    return {"data": svc.active.snapshot(), "count": len(svc.active)}
+
+
+@router.post("/active-requests/{request_id}/abort")
+async def abort_active_request(request_id: str,
+                               svc: Services = Depends(get_services)) -> dict:
+    """Set the request's cancel event, exactly what a client disconnect does."""
+    if not svc.active.abort(request_id):
+        raise NotFound(f"request '{request_id}' is not running")
+    return {"aborted": request_id}
+
+
+# ---- quota trend ----
+@router.get("/quota/history")
+async def quota_history(
+    account_id: str | None = None,
+    days: float = Query(default=7, gt=0, le=90),
+    svc: Services = Depends(get_services),
+) -> dict:
+    """Weekly-quota samples (fed by the quota route) plus a burn-rate forecast."""
+    return await svc.quota.series(account_id=account_id, days=days)
 
 
 @router.get("/stats")

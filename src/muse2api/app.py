@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import math
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -20,6 +21,7 @@ from .accounts.keepalive import keepalive_loop
 from .api.middleware import RequestLogMiddleware
 from .api.routes import build_router
 from .config import Settings, get_settings
+from .core.logbuffer import LOG_BUFFER, LogBuffer
 from .drivers.base import MuseDriver
 from .errors import Muse2APIError
 from .services.container import Services
@@ -39,15 +41,24 @@ async def _housekeeping(services: Services) -> None:
         if time.monotonic() - last_prune >= _PRUNE_INTERVAL:
             last_prune = time.monotonic()
             await services.requests.prune(services.settings.request_log_retention_days)
+            await services.quota.prune(services.settings.quota_history_retention_days)
             removed = services.media.prune(services.settings.media_retention_days * 86400)
             if removed:
                 log.info("media cleanup: removed %d expired file(s)", removed)
+
+
+def _attach_log_buffer() -> None:
+    """One shared handler, so repeated create_app() calls (tests) do not double up."""
+    root = logging.getLogger()
+    if not any(isinstance(handler, LogBuffer) for handler in root.handlers):
+        root.addHandler(LOG_BUFFER)
 
 
 def create_app(settings: Settings | None = None, driver: MuseDriver | None = None) -> FastAPI:
     settings = settings or get_settings()
     settings.resolve_api_key()
     services = Services.build(settings, driver)
+    _attach_log_buffer()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -55,6 +66,7 @@ def create_app(settings: Settings | None = None, driver: MuseDriver | None = Non
         await services.tasks.load()
         await services.keys.load()
         await services.requests.open()
+        await services.quota.open()
         await services.requests.prune(settings.request_log_retention_days)
         await services.requests.backfill_tasks(services.tasks.list(limit=services.tasks.max_kept))
         await services.driver.startup()
@@ -80,13 +92,22 @@ def create_app(settings: Settings | None = None, driver: MuseDriver | None = Non
             await services.driver.shutdown()
             await services.keys.flush()
             await services.requests.close()
+            await services.quota.close()
 
     app = FastAPI(title="muse2api", version=__version__, lifespan=lifespan)
     app.state.services = services
 
     @app.exception_handler(Muse2APIError)
-    async def _muse_error(_: Request, exc: Muse2APIError) -> JSONResponse:
-        return JSONResponse(exc.to_body(), status_code=exc.status_code)
+    async def _muse_error(request: Request, exc: Muse2APIError) -> JSONResponse:
+        body = exc.to_body()
+        if request_id := getattr(request.state, "request_id", None):
+            body["error"]["request_id"] = request_id
+        headers = {}
+        # The pool knows when an account comes back; tell the client instead of
+        # letting it retry into a pool that is still cooling down.
+        if retry_after := getattr(exc, "retry_after", None):
+            headers["Retry-After"] = str(max(1, math.ceil(retry_after)))
+        return JSONResponse(body, status_code=exc.status_code, headers=headers)
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:

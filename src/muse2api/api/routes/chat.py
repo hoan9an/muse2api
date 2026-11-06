@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 
+from ...core.context import current_request_id
 from ...core.media import load_image_ref
 from ...core.models import resolve_model
 from ...core.prompt import flatten_messages, message_turns
@@ -57,10 +58,16 @@ async def chat_completions(body: ChatCompletionRequest, request: Request,
     completion_id = "chatcmpl-" + uuid.uuid4().hex[:24]
     created = int(time.time())
     model_name = body.model or spec.id
+    tracked = svc.active.track(cancel, request_id=current_request_id.get(),
+                               path=request.url.path, model=model_name,
+                               stream=bool(body.stream))
     stream = svc.gateway.chat_stream(req)
 
     if not body.stream:
-        text = "".join([d async for d in stream])
+        try:
+            text = "".join([d async for d in stream])
+        finally:
+            svc.active.finish(tracked)
         return {
             "id": completion_id,
             "object": "chat.completion",
@@ -126,6 +133,7 @@ async def chat_completions(body: ChatCompletionRequest, request: Request,
             log.exception("stream crashed")
             yield _sse({"error": {"message": "internal error", "type": "server_error"}})
         finally:
+            svc.active.finish(tracked)
             cancel.set()
             await stream.aclose()
         yield _sse("[DONE]")
@@ -145,6 +153,9 @@ async def chat_completions(body: ChatCompletionRequest, request: Request,
         first = await anext(stream)
     except StopAsyncIteration:
         first = ""
+    except BaseException:
+        svc.active.finish(tracked)
+        raise
 
     return StreamingResponse(events(first), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

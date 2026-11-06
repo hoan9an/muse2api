@@ -6,6 +6,7 @@ from fastapi import Request
 
 from ..errors import Unauthorized
 from ..services.container import Services
+from ..services.sessions import COOKIE_NAME
 
 
 def get_services(request: Request) -> Services:
@@ -17,11 +18,6 @@ def _bearer(request: Request) -> str:
     if auth.lower().startswith("bearer "):
         return auth[7:].strip()
     return request.headers.get("x-api-key", "").strip()
-
-
-def _check(provided: str, expected: str) -> None:
-    if not expected or not hmac.compare_digest(provided.encode(), expected.encode()):
-        raise Unauthorized("invalid or missing API key")
 
 
 def _matches(provided: str, expected: str) -> bool:
@@ -64,7 +60,14 @@ def conversation_key(request: Request, user: str | None) -> str | None:
 
 
 def require_admin_key(request: Request) -> None:
-    _check(_bearer(request), get_services(request).settings.effective_admin_key)
+    """Accept the admin key (header) or the dashboard's session cookie."""
+    svc = get_services(request)
+    provided = _bearer(request)
+    if provided and _matches(provided, svc.settings.effective_admin_key):
+        return
+    if svc.sessions.get(request.cookies.get(COOKIE_NAME)) is not None:
+        return
+    raise Unauthorized("invalid or missing API key")
 
 
 def public_base(request: Request) -> str:

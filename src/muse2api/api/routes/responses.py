@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
+from ...core.context import current_request_id
 from ...core.media import load_image_ref
 from ...core.models import resolve_model
 from ...core.prompt import flatten_messages, message_turns
@@ -133,14 +134,20 @@ async def create_response(body: ResponseRequest, request: Request,
         turns=message_turns(messages),
         cancel=cancel,
     )
-    stream = svc.gateway.chat_stream(req)
     resp_id = "resp_" + uuid.uuid4().hex[:24]
     msg_id = "msg_" + uuid.uuid4().hex[:24]
     created = int(time.time())
     model_name = body.model or spec.id
+    tracked = svc.active.track(cancel, request_id=current_request_id.get(),
+                               path=request.url.path, model=model_name,
+                               stream=bool(body.stream))
+    stream = svc.gateway.chat_stream(req)
 
     if not body.stream:
-        text = "".join([d async for d in stream])
+        try:
+            text = "".join([d async for d in stream])
+        finally:
+            svc.active.finish(tracked)
         return _response_object(resp_id, msg_id, created, model_name, text, flat.text)
 
     async def events(first: str | None) -> AsyncIterator[bytes]:
@@ -213,6 +220,7 @@ async def create_response(body: ResponseRequest, request: Request,
             log.exception("responses stream crashed")
             yield _sse({"error": {"message": "internal error", "type": "server_error"}})
         finally:
+            svc.active.finish(tracked)
             cancel.set()
             await stream.aclose()
 
@@ -230,6 +238,9 @@ async def create_response(body: ResponseRequest, request: Request,
         first = await anext(stream)
     except StopAsyncIteration:
         first = ""
+    except BaseException:
+        svc.active.finish(tracked)
+        raise
 
     return StreamingResponse(events(first), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache",
