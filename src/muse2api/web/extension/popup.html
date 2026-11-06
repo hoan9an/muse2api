@@ -8,45 +8,46 @@
   * { box-sizing: border-box; }
   body {
     width: 380px; margin: 0; padding: 16px 18px 18px;
-    background: #0e0d0c; color: #ece5dc;
-    font: 13px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #11120f; color: #f2f0e8;
+    font: 13px/1.6 "Lexend", "Switzer", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
-  h1 { font-size: 15px; margin: 0 0 3px; display: flex; align-items: center; gap: 7px; }
-  h1 .dot { width: 8px; height: 8px; border-radius: 50%; background: #b87333; }
+  h1 { font-size: 15px; margin: 0 0 3px; display: flex; align-items: center; gap: 7px; font-weight: 600; }
+  h1 .dot { width: 8px; height: 8px; border-radius: 50%; background: #e5ac82; }
   h1 .langsel {
     margin-left: auto; width: auto; padding: 3px 6px; border-radius: 6px;
-    border: 1px solid #262019; background: #1b1815; color: #ece5dc;
+    border: 1px solid #f2f0e821; background: #191a16; color: #f2f0e8;
     font-size: 11.5px; font-weight: 400; cursor: pointer;
   }
-  .sub { color: #9c9284; font-size: 11.5px; margin: 0 0 14px; }
-  label { display: block; font-size: 11.5px; color: #9c9284; margin: 11px 0 4px; }
+  .sub { color: #a5a69b; font-size: 11.5px; margin: 0 0 14px; }
+  label { display: block; font-size: 11.5px; color: #a5a69b; margin: 11px 0 4px; }
   input {
     width: 100%; padding: 8px 10px; border-radius: 7px;
-    border: 1px solid #262019; background: #1b1815; color: #ece5dc; font-size: 12.5px;
+    border: 1px solid #f2f0e821; background: #191a16; color: #f2f0e8; font-size: 12.5px;
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   }
-  input:focus { outline: none; border-color: #b87333; }
+  input:focus { outline: none; border-color: #e5ac82; box-shadow: 0 0 0 2px #e5ac8238; }
   button {
     width: 100%; margin-top: 16px; padding: 11px; border: 0; border-radius: 8px;
-    background: linear-gradient(180deg, #c99568, #b87333); color: #1f150c;
+    background: #e5ac82; color: #241b15;
     font-size: 13.5px; font-weight: 600; cursor: pointer;
   }
-  button:hover { filter: brightness(1.08); }
-  button:disabled { opacity: .55; cursor: default; filter: none; }
+  button:hover { background: #edb78b; }
+  button:disabled { opacity: .55; cursor: default; }
   .steps {
-    background: #161412; border: 1px solid #262019; border-radius: 8px;
-    padding: 10px 12px; margin-top: 14px; font-size: 11.5px; color: #9c9284; line-height: 1.75;
+    background: #191a16; border: 1px solid #f2f0e821; border-radius: 8px;
+    padding: 10px 12px; margin-top: 14px; font-size: 11.5px; color: #a5a69b; line-height: 1.75;
   }
-  .steps b { color: #ece5dc; }
+  .steps b { color: #f2f0e8; }
+  .steps a { color: #e5ac82; }
   #log { margin-top: 14px; font-size: 12px; white-space: pre-wrap; word-break: break-all;
     font-family: ui-monospace, Consolas, monospace; display: none; }
   #log.show { display: block; }
-  .ok { color: #6cae7f; } .bad { color: #d97b70; } .warn { color: #cfa468; }
+  .ok { color: #9ecbbb; } .bad { color: #edaaa1; } .warn { color: #e5c28c; }
   .foot {
-    margin-top: 14px; padding-top: 11px; border-top: 1px solid #1e1914;
-    font-size: 11px; color: #6c6257; line-height: 1.7;
+    margin-top: 14px; padding-top: 11px; border-top: 1px solid #f2f0e821;
+    font-size: 11px; color: #93958a; line-height: 1.7;
   }
-  code { background: #1b1815; padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+  code { background: #191a16; padding: 1px 5px; border-radius: 4px; font-size: 11px; }
 </style>
 </head>
 <body>
@@ -74,7 +75,7 @@
 
   <div class="steps" id="t-steps">
     <b>Before you start, check two things:</b><br>
-    1. You are logged in to <a href="https://muse.ai/" target="_blank" style="color:#c99568">muse.ai</a>
+    1. You are logged in to <a href="https://muse.ai/" target="_blank">muse.ai</a>
        in <b>this browser</b> (you can see the chat interface).<br>
     2. The Gateway URL and Admin Key above are filled in
        (copy them from the top of the "Accounts" tab on the muse2api dashboard).
