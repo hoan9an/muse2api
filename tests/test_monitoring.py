@@ -206,7 +206,7 @@ def test_dashboard_html(client):
     r = client.get("/dashboard")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/html")
-    assert "<title>muse2api dashboard</title>" in r.text
+    assert "<title>Muse2API · Console</title>" in r.text
 
 
 def _wait_task(client, auth, task_id: str) -> dict:
