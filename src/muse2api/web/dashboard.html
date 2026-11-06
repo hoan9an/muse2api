@@ -264,6 +264,15 @@ label.chk input[type=checkbox] { accent-color: var(--accent); width: 15px; heigh
   .logline .lg { display: none; }
 }
 
+/* ---------- polish ---------- */
+.page-head h1 { font-size: 21px; letter-spacing: -.02em; }
+.page-head .sub { font-size: 12.5px; }
+.panel { border-radius: 12px; }
+h2 { font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 650; margin: 20px 0 8px; }
+.cardhead { font-size: 12.5px; }
+.pg-out { margin: 0; padding: 14px 16px; min-height: 190px; max-height: 52vh; overflow: auto;
+  white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; }
+
 /* ---------- tables ---------- */
 .tablewrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -476,6 +485,8 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
   <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H13L13 2z"/></symbol>
   <symbol id="i-logs" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M7 9.5l2.5 2.5L7 14.5M12.5 15H17"/></symbol>
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h8.5M17.5 7H20M4 17h3.5M12.5 17H20"/><circle cx="15" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></symbol>
+  <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5-11-6.5z"/></symbol>
 </svg>
 
 <!-- login screen -->
@@ -520,10 +531,11 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
       <a href="#accounts" data-page="accounts"><svg class="i"><use href="#i-accounts"/></svg>Accounts<span class="count" id="nav-accounts"></span></a>
       <a href="#keys" data-page="keys"><svg class="i"><use href="#i-keys"/></svg>API Keys<span class="count" id="nav-keys"></span></a>
       <a href="#requests" data-page="requests"><svg class="i"><use href="#i-requests"/></svg>Requests</a>
+      <a href="#models" data-page="models"><svg class="i"><use href="#i-cube"/></svg>Models</a>
+      <a href="#playground" data-page="playground"><svg class="i"><use href="#i-play"/></svg>Playground</a>
       <div class="navlabel" style="margin-top:14px">System</div>
       <a href="#logs" data-page="logs"><svg class="i"><use href="#i-logs"/></svg>Logs</a>
       <a href="#settings" data-page="settings"><svg class="i"><use href="#i-sliders"/></svg>Settings</a>
-      <button type="button" class="navbtn" id="nav-palette"><svg class="i"><use href="#i-command"/></svg>Command palette<kbd>⌘K</kbd></button>
     </nav>
     <div class="side-foot">
       <div class="themes" role="group" aria-label="Theme">
@@ -671,6 +683,42 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
         </div>
       </section>
 
+      <!-- models -->
+      <section class="page" id="page-models" hidden>
+        <div class="page-head">
+          <div class="grow"><h1>Models</h1><div class="sub">What <span class="mono">GET /v1/models</span> serves, plus the aliases clients may send instead. <span class="stamp" id="mdl-stamp"></span></div></div>
+          <div class="tools"><button class="btn" id="mdl-refresh" type="button"><svg class="i"><use href="#i-refresh"/></svg>Refresh</button></div>
+        </div>
+        <div class="panel"><div class="tablewrap"><table>
+          <thead><tr><th>Model</th><th>Kind</th><th class="hide-sm">Use</th><th class="num">Requests</th><th class="num">Errors</th><th></th></tr></thead>
+          <tbody id="mdl-body"></tbody>
+        </table></div></div>
+        <h2>Aliases</h2>
+        <div class="panel"><div class="list" id="mdl-alias"></div></div>
+      </section>
+
+      <!-- playground -->
+      <section class="page" id="page-playground" hidden>
+        <div class="page-head">
+          <div class="grow"><h1>Playground</h1><div class="sub">Run one prompt through the pool to check a model, its latency and the account that served it.</div></div>
+          <div class="tools"><span class="stamp" id="pg-latency"></span></div>
+        </div>
+        <div class="grid2">
+          <div class="panel pad">
+            <label class="f">Model<select id="pg-model"></select></label>
+            <label class="f">Prompt<textarea id="pg-prompt" rows="8" placeholder="Ask muse-chat something… Ctrl+Enter runs it."></textarea></label>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+              <button class="btn primary" id="pg-run" type="button"><svg class="i"><use href="#i-play"/></svg>Run</button>
+              <button class="btn" id="pg-clear" type="button">Clear</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="cardhead">Response<button class="btn sm" id="pg-copy" type="button" style="margin-left:auto">Copy</button></div>
+            <pre class="pg-out" id="pg-out">No run yet.</pre>
+          </div>
+        </div>
+      </section>
+
       <!-- logs -->
       <section class="page" id="page-logs" hidden>
         <div class="page-head">
@@ -749,11 +797,12 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const PAGES = {overview: "Overview", accounts: "Accounts", keys: "API Keys", requests: "Requests",
-                 logs: "Logs", settings: "Settings"};
+                 models: "Models", playground: "Playground", logs: "Logs", settings: "Settings"};
   const state = {
     page: "overview", window: "24h", offset: 0, limit: 50,
     accounts: [], keys: [], builtin: [], capabilities: {}, timer: null, modalOpen: false,
     active: [], debugIds: new Set(), quota: null, logCursor: 0, logSeen: 0, config: null,
+    models: [], playModel: "", playOut: "",
   };
 
   // ---- helpers ----
@@ -1776,6 +1825,83 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
   $("#cfg-refresh").addEventListener("click", () => guarded(loadSettingsPage));
   $("#cfg-q").addEventListener("input", () => { if (state.config) renderConfig(); });
 
+  // ---- models ----
+  async function loadModelsPage() {
+    const res = await api(`/admin/models?window=${state.window}`);
+    state.models = res.data || [];
+    const total = state.models.reduce((s, m) => s + m.requests, 0);
+    $("#mdl-stamp").textContent = `· ${fmtNum(total)} requests in the last ${state.window}`;
+    $("#mdl-body").innerHTML = state.models.map((m) => `<tr>
+        <td class="mono">${esc(m.id)}</td>
+        <td><span class="badge plain ${m.kind === "chat" ? "b-info" : m.kind === "image" ? "b-ok" : "b-warn"}">${esc(m.kind)}</span></td>
+        <td class="hide-sm muted trunc" data-label="Use">${esc(m.description || "—")}</td>
+        <td class="num" data-label="Requests">${fmtNum(m.requests)}</td>
+        <td class="num ${m.errors ? "hot" : "zero"}" data-label="Errors">${fmtNum(m.errors)}</td>
+        <td class="actions"><button class="btn sm" type="button" data-try="${esc(m.id)}"${m.kind === "chat" ? "" : " disabled title=\"The playground runs chat models only\""}>Try</button></td>
+      </tr>`).join("");
+    $("#mdl-alias").innerHTML = (res.aliases || []).map((a) => `<div class="li">
+        <span class="mono lbl" title="${esc(a.id)}">${esc(a.id)}</span>
+        <span class="muted" style="font-size:12px">→ ${esc(a.target)}</span>
+        <span class="badge plain b-mute">${esc(a.kind)}</span>
+      </div>`).join("") || `<div class="empty"><b>No aliases</b><span>An alias maps a familiar OpenAI model name onto a muse model.</span></div>`;
+  }
+  $("#mdl-refresh").addEventListener("click", () => guarded(loadModelsPage));
+  $("#mdl-body").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-try]");
+    if (!b) return;
+    state.playModel = b.dataset.try;
+    go("playground");
+  });
+
+  // ---- playground ----
+  async function loadPlaygroundPage() {
+    if (!state.models.length) {
+      try { state.models = (await api("/admin/models")).data || []; } catch { state.models = []; }
+    }
+    const sel = $("#pg-model");
+    const chat = state.models.filter((m) => m.kind === "chat");
+    sel.innerHTML = chat.map((m) => `<option value="${esc(m.id)}">${esc(m.id)}</option>`).join("")
+      || `<option value="muse-chat">muse-chat</option>`;
+    if (state.playModel) sel.value = state.playModel;
+    if (state.playOut) $("#pg-out").textContent = state.playOut;
+  }
+  async function runPlayground() {
+    const prompt = $("#pg-prompt").value.trim();
+    if (!prompt) { toast("Write a prompt first"); return; }
+    const btn = $("#pg-run");
+    btn.disabled = true;
+    $("#pg-out").textContent = "Running…";
+    $("#pg-latency").textContent = "";
+    try {
+      const res = await api("/admin/playground", {method: "POST",
+        body: {prompt, model: $("#pg-model").value}});
+      state.playOut = res.content || "(the model returned no text)";
+      $("#pg-latency").textContent = `${res.model} · ${fmtMs(res.latency_ms)} · ${fmtNum(res.chars)} chars`;
+    } catch (err) {
+      if (err instanceof AuthError) throw err;
+      state.playOut = `Error: ${err.message}`;
+    } finally {
+      $("#pg-out").textContent = state.playOut;
+      btn.disabled = false;
+    }
+  }
+  $("#pg-run").addEventListener("click", () => guarded(runPlayground));
+  $("#pg-prompt").addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); guarded(runPlayground); }
+  });
+  $("#pg-clear").addEventListener("click", () => {
+    $("#pg-prompt").value = "";
+    state.playOut = "";
+    $("#pg-out").textContent = "No run yet.";
+    $("#pg-latency").textContent = "";
+  });
+  $("#pg-copy").addEventListener("click", async () => {
+    const text = $("#pg-out").textContent || "";
+    if (!text) return;
+    try { await navigator.clipboard.writeText(text); toast("Copied the response"); }
+    catch { toast("Copy failed — select the text instead"); }
+  });
+
   // ---- settings ----
   const LIVE_FIELDS = [
     ["account_cooldown", "Cooldown after an upstream error (s)", "number"],
@@ -1857,6 +1983,8 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
       P("page", "accounts", "Accounts", "muse.ai pool", () => go("accounts")),
       P("page", "keys", "API Keys", "clients", () => go("keys")),
       P("page", "requests", "Requests", "log", () => go("requests")),
+      P("page", "cube", "Models", "catalog & aliases", () => go("models")),
+      P("page", "play", "Playground", "run a prompt", () => go("playground")),
       P("action", "plus", "Issue API key", "", () => { go("keys"); setTimeout(() => $("#key-new").click(), 60); }),
       P("action", "refresh", "Refresh current page", "", () => guarded(loaders[state.page])),
       P("action", "download", "Download cookie extension", "", () => { go("accounts"); setTimeout(() => $("#acc-ext-dl").click(), 60); }),
@@ -1919,7 +2047,6 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     state.modalOpen = false;
   }
   $("#cmdk").addEventListener("click", openPal);
-  $("#nav-palette").addEventListener("click", openPal);
   $("#pal-q").addEventListener("input", () => { palSel = 0; renderPal(); });
   $("#pal-list").addEventListener("click", (e) => {
     const it = e.target.closest(".pal-item");
@@ -1962,7 +2089,8 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
 
   // ---- routing: #page or #requests?key=..&account=.. ----
   const loaders = {overview: loadOverviewPage, accounts: loadAccountsPage, keys: loadKeys,
-                   requests: loadRequests, logs: loadLogs, settings: loadSettingsPage};
+                   requests: loadRequests, models: loadModelsPage, playground: loadPlaygroundPage,
+                   logs: loadLogs, settings: loadSettingsPage};
   function parseHash() {
     const [page, query] = location.hash.replace(/^#/, "").split("?");
     return {page: loaders[page] ? page : "", params: new URLSearchParams(query || "")};

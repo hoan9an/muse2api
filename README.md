@@ -294,6 +294,8 @@ curl http://localhost:18610/admin/accounts \
 | GET/POST | `/admin/active-requests` · `/admin/active-requests/{request_id}/abort` | Chat/responses calls currently holding a driver · abort one, as a client disconnect would (media tasks use `/admin/tasks/{id}/cancel`) |
 | GET | `/admin/quota/history?account_id=…&days=7` | Weekly-quota samples with a burn-rate forecast |
 | GET/PATCH | `/admin/config` | Effective settings (secrets masked) · apply the live-editable subset without a restart |
+| GET | `/admin/models?window=24h` | Model catalog with per-model traffic, plus the client aliases |
+| POST | `/admin/playground` | Run one prompt through the pool to check a model from the panel |
 | POST/GET/DELETE | `/admin/session` | Dashboard sign-in (key → HttpOnly cookie) · probe · sign-out |
 | GET | `/admin/process-log?after=<id>&level=…` | Newest in-memory log lines, polled by id cursor |
 | GET | `/dashboard` | Web dashboard (asks for the admin key in the browser) |

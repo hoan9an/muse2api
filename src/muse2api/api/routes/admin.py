@@ -17,12 +17,16 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 
 from ... import __version__
 from ...accounts.keepalive import renew_account
 from ...accounts.model import Account, AccountStatus
 from ...auth.keys import ApiKey
+from ...core.context import current_request_id
 from ...core.logbuffer import LOG_BUFFER
+from ...core.models import ALIASES, MODELS, resolve_model
+from ...drivers.base import ChatRequest
 from ...errors import InvalidRequest, Muse2APIError, NotFound
 from ...services.container import Services
 from ...services.request_log import COLUMNS as LOG_COLUMNS
@@ -414,3 +418,62 @@ async def quota_history(
 async def stats(window: Literal["1h", "24h", "7d"] = "24h",
                 svc: Services = Depends(get_services)) -> dict:
     return {"now": time.time(), **await svc.requests.stats(window)}
+
+
+class PlaygroundRequest(BaseModel):
+    """One prompt to run through the pool from the panel, with no client key involved."""
+
+    prompt: str = Field(min_length=1, max_length=20000)
+    model: str = ""
+    timeout: float | None = Field(default=None, gt=0, le=600)
+
+
+@router.get("/models")
+async def model_catalog(window: Literal["1h", "24h", "7d"] = "24h",
+                        svc: Services = Depends(get_services)) -> dict:
+    """What ``GET /v1/models`` serves, with traffic per model for the Models page."""
+    by_model = {row.get("model"): row for row in (await svc.requests.stats(window))["by_model"]}
+    data = []
+    for spec in MODELS.values():
+        row = by_model.get(spec.id) or {}
+        data.append({
+            "id": spec.id,
+            "kind": spec.kind,
+            "description": spec.description,
+            "owned_by": spec.owned_by,
+            "requests": row.get("count") or 0,
+            "errors": row.get("errors") or 0,
+        })
+    aliases = [{"id": alias, "target": target, "kind": MODELS[target].kind}
+               for alias, target in ALIASES.items()]
+    return {"data": data, "aliases": aliases, "window": window,
+            "unattributed": by_model.get(None) or {}}
+
+
+@router.post("/playground")
+async def playground(body: PlaygroundRequest,
+                     svc: Services = Depends(get_services)) -> dict:
+    """Run one chat turn through the pool so a model can be checked from the panel."""
+    spec = resolve_model(body.model, "chat")
+    timeout = min(body.timeout or svc.settings.chat_timeout, 600.0)
+    cancel = asyncio.Event()
+    req = ChatRequest(
+        prompt=body.prompt,
+        model=spec.id,
+        timeout=timeout,
+        first_token_timeout=min(svc.settings.first_token_timeout, timeout),
+        conversation_hint=None,
+        cancel=cancel,
+    )
+    started = time.perf_counter()
+    tracked = svc.active.track(cancel, request_id=current_request_id.get() or "",
+                               path="/admin/playground", model=spec.id, stream=True)
+    chunks: list[str] = []
+    try:
+        async for delta in svc.gateway.chat_stream(req):
+            chunks.append(delta)
+    finally:
+        svc.active.finish(tracked)
+    text = "".join(chunks)
+    return {"model": spec.id, "content": text, "chars": len(text),
+            "latency_ms": round((time.perf_counter() - started) * 1000)}
