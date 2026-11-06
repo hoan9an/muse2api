@@ -300,8 +300,9 @@ label.chk input[type=checkbox] { accent-color: var(--accent); width: 15px; heigh
 }
 
 /* ---------- models ---------- */
-.aliasgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 1px; background: var(--border); }
+.aliasgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 0; background: var(--panel); }
 .aliasrow { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: var(--panel); border: 0; padding: 9px 12px; cursor: pointer; font: inherit; color: inherit; }
+.aliasrow { box-shadow: inset -1px -1px 0 var(--border); }
 .aliasrow:hover { background: var(--panel-2); }
 .aliasrow .an { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
 .aliasrow .ar { color: var(--faint); font-size: 12px; }
