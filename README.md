@@ -46,7 +46,7 @@ The project focuses on **clean engineering and easy collaboration**:
 
 ## Status
 
-> **Current**: the mock-driver test suite passes locally (81 tests, no network access) and CI runs on every push to main; the browser driver and the direct-protocol driver still need live testing against a real muse.ai account.
+> **Current**: the mock-driver test suite passes locally (no network access) and CI runs on every push to main; the browser driver and the direct-protocol driver still need live testing against a real muse.ai account.
 
 | Module | Status | Notes |
 |---|---|---|
@@ -59,7 +59,7 @@ The project focuses on **clean engineering and easy collaboration**:
 | Session renewal / keepalive | 🧪 Needs live testing | Plain HTTP, on by default every 10 min; also wakes the account's VM so the first request is not slowed by a cold start |
 | Direct HTTP protocol driver | 🚧 Reserved | Returns 501 |
 | `/v1/images/edits` (reference images) | ✅ Implemented | Images are references for a new image; `mask` is rejected |
-| `/v1/responses` | 🚧 Reserved | Returns 501 |
+| `/v1/responses` | ✅ Implemented | Chat-shaped Responses API, streaming and non-streaming; covered by `tests/test_sdk_compat.py` |
 | Streaming heartbeats (SSE keepalive) | ✅ Implemented | Opt-in with `MUSE2API_STREAM_HEARTBEAT_INTERVAL`; sends `: keepalive` comments while waiting for the first token |
 | Automatic media cleanup | ✅ Implemented | `MUSE2API_MEDIA_RETENTION_DAYS` (default 14, `0` disables); hourly background pruning |
 | SSRF guard for server-side image fetches | ✅ Implemented | Private and loopback URLs are rejected |
@@ -114,6 +114,8 @@ flowchart TB
 **How a chat request is handled**: the route resolves the model alias and merges the multi-turn `messages` into a single prompt, then hands it to the Gateway. The Gateway leases an account from the pool and asks the driver for a text stream. On failure, the account's state is updated according to the error type: accounts with an expired session are taken offline, accounts out of quota cool down, and other errors cause a short cooldown. As long as nothing has been sent to the client yet, the request is retried on another account.
 
 For streaming requests, the first chunk is fetched before returning 200. Errors such as "no account available" or "upstream authentication failed" therefore come back with a proper HTTP status code instead of a stream that breaks halfway.
+
+Every `/v1/*` response carries an `X-Request-Id` header, the same id is stored on the request-log row and in the error body (`error.request_id`), so one failing call can be found in the dashboard from what the client saw. When the pool has no usable account it also sends `Retry-After` with the seconds until the next account is back, instead of making the client guess.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
 
@@ -287,16 +289,23 @@ curl http://localhost:18610/admin/accounts \
 | GET | `/admin/status` · `/admin/tasks` | Service status · task list |
 | GET/POST/PATCH/DELETE | `/admin/keys[/{id}]` | Client API keys (create returns the key once; PATCH renames / revokes) |
 | GET | `/admin/requests` · `/admin/stats?window=1h\|24h\|7d` | Request log (filters: `key_id`, `account_id`, `status=2xx\|4xx\|5xx`, `path`, `since`, `hide_polls`) · aggregates |
+| GET | `/admin/requests/export?format=csv\|json` | The same log as a file, with the same filters |
+| GET | `/admin/debug` · `/admin/debug/{request_id}` · `/admin/debug/{request_id}/screenshot` | Browser-driver failure captures (needs `MUSE2API_DEBUG_CAPTURE`): metadata, page text, screenshot |
+| GET/POST | `/admin/active-requests` · `/admin/active-requests/{request_id}/abort` | Chat/responses calls currently holding a driver · abort one, as a client disconnect would (media tasks use `/admin/tasks/{id}/cancel`) |
+| GET | `/admin/quota/history?account_id=…&days=7` | Weekly-quota samples with a burn-rate forecast |
+| GET/PATCH | `/admin/config` | Effective settings (secrets masked) · apply the live-editable subset without a restart |
+| POST/GET/DELETE | `/admin/session` | Dashboard sign-in (key → HttpOnly cookie) · probe · sign-out |
+| GET | `/admin/process-log?after=<id>&level=…` | Newest in-memory log lines, polled by id cursor |
 | GET | `/dashboard` | Web dashboard (asks for the admin key in the browser) |
-| POST | `/v1/responses` | Reserved, currently returns 501 |
+| POST | `/v1/responses` | Responses API (streaming events and non-streaming) |
 
 ### Dashboard, API keys and request log
 
-Open `http://localhost:18610/dashboard` and enter the admin key; it is kept in the browser's local storage and sent as a Bearer token to `/admin/*`. The page shows request volume, error rate and latency, the account pool (enable/disable, renew, reset), a live request log, and API key management.
+Open `http://localhost:18610/dashboard` and enter the admin key. It is exchanged once at `POST /admin/session` for an HttpOnly session cookie — the key is never written to browser storage — while scripts and the extension can still send `Authorization: Bearer <admin key>`. The page shows request volume, error rate and latency, the account pool (enable/disable, renew, reset), a live request log, API key management, the newest in-memory log lines (**Logs**, with a level filter and follow/pause) and the effective configuration (**Settings**: masked secrets, live-apply for timeouts, pool scheduling, retention and failure capture).
 
 ![Dashboard overview](docs/images/dashboard-overview.png)
 
-Each account card shows its quota (usage bar, plan, reset date, age of the reading, with a **Quota** button to read it again), when its session cookie expires, and whether its VM was confirmed running after the last wake. **Import hàng loạt** (bulk import) takes one `label | cookie string` per line.
+Each account card shows its quota (usage bar, plan, reset date, age of the reading, with a **Quota** button to read it again), a 7-day sparkline of past readings with a projected burn rate (“limit in 12h” / “safe until reset”), when its session cookie expires, and whether its VM was confirmed running after the last wake. The Overview page has a **Running now** panel (abort one request by its id), and the Requests page can export the filtered log as CSV or JSON. When `MUSE2API_DEBUG_CAPTURE` is on, a failing request gets a `dbg` badge whose detail modal opens the saved screenshot and page text. **Import hàng loạt** (bulk import) takes one `label | cookie string` per line.
 
 ![Accounts](docs/images/dashboard-accounts.png)
 
@@ -328,7 +337,13 @@ All settings come from environment variables (prefix `MUSE2API_`) or a `.env` fi
 | `MUSE2API_STREAM_HEARTBEAT_INTERVAL` | `0` | SSE `: keepalive` comment interval (seconds) while waiting for the first stream token; `0` disables |
 | `MUSE2API_PUBLIC_BASE` | empty | Public base URL used in media links; derived from the request when empty |
 | `MUSE2API_POOL_STRATEGY` | `lru` | Account scheduling: `lru` / `round_robin` / `affinity` |
+| `MUSE2API_SITE_URL` | `https://muse.ai` | Upstream base URL; every upstream location the drivers address is derived from it |
 | `MUSE2API_MAX_FAILOVER` | `2` | Maximum number of retries on another account |
+| `MUSE2API_AFFINITY_TTL` | `3600` | Seconds a conversation stays pinned to its account (`affinity`); a visit renews the binding, `0` never expires |
+| `MUSE2API_QUOTA_LOW_THRESHOLD_PCT` | `85` | Weekly quota % above which an account keeps only the conversations already bound to it and is skipped for new ones; `0` disables |
+| `MUSE2API_DEBUG_CAPTURE` | `false` | On a browser-driver failure save `data/debug/<id>/{meta.json,page.txt,page.png}` (may hold account content) |
+| `MUSE2API_DEBUG_CAPTURE_MAX_DIRS` · `MUSE2API_DEBUG_CAPTURE_RETENTION_DAYS` | `50` · `3` | Capture count and age limits |
+| `MUSE2API_QUOTA_HISTORY_RETENTION_DAYS` | `30` | Days of weekly-quota samples kept in `data/quota.db` for the trend and forecast |
 | `MUSE2API_ACCOUNT_MAX_CONCURRENCY` | `4` | Parallel requests per account (browser driver: one tab each, about 300 MB of memory per tab) |
 | `MUSE2API_WARM_THREADS` | `2` | Pre-started threads kept per account. A new muse.ai thread takes 20-40s to answer its first message, a started one about 5s, so chats that need a new thread go into a warm one. Each costs one extra short message of quota; needs a concurrency of at least 2 |
 | `MUSE2API_CHROMIUM_PATH` | auto-detected | Path to the browser executable |

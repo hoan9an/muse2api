@@ -59,7 +59,7 @@ muse2api 把 muse.ai 的聊天、文生图和文生视频能力变成标准的 O
 | 会话续期 / 保活 | 🧪 待实测 | 纯 HTTP，默认开启，每 10 分钟一次；同时唤醒账号的 VM，第一条请求不用等冷启动 |
 | 直连 HTTP 协议 driver | 🚧 预留 | 返回 501 |
 | `/v1/images/edits`（参考图） | ✅ 已实现 | 参考图用于生成新图；不支持 `mask` |
-| `/v1/responses` | 🚧 预留 | 返回 501 |
+| `/v1/responses` | ✅ 已实现 | 兼容 Chat 语义的 Responses API，支持流式与非流式；由 `tests/test_sdk_compat.py` 覆盖 |
 | 流式心跳（SSE keepalive） | ✅ 已实现 | 用 `MUSE2API_STREAM_HEARTBEAT_INTERVAL` 开启；等第一个 token 期间发送 `: keepalive` 注释 |
 | 媒体自动清理 | ✅ 已实现 | `MUSE2API_MEDIA_RETENTION_DAYS`（默认 14 天，`0` 关闭）；每小时后台清理 |
 | 服务端图片抓取的 SSRF 防护 | ✅ 已实现 | 拒绝内网和回环地址 |
@@ -287,12 +287,19 @@ curl http://localhost:18610/admin/accounts \
 | GET | `/admin/status` · `/admin/tasks` | 服务状态 · 任务列表 |
 | GET/POST/PATCH/DELETE | `/admin/keys[/{id}]` | 客户端 API key（创建时只返回一次明文；PATCH 改名/吊销） |
 | GET | `/admin/requests` · `/admin/stats?window=1h\|24h\|7d` | 请求日志（可按 `key_id`、`account_id`、`status=2xx\|4xx\|5xx`、`path`、`since` 过滤，`hide_polls` 隐藏轮询）· 聚合统计 |
+| GET | `/admin/requests/export?format=csv\|json` | 以同样过滤条件导出请求日志文件 |
+| GET | `/admin/debug` · `/admin/debug/{request_id}` · `/admin/debug/{request_id}/screenshot` | 浏览器驱动失败取证（需 `MUSE2API_DEBUG_CAPTURE`）：元数据、页面文本、截图 |
+| GET/POST | `/admin/active-requests` · `/admin/active-requests/{request_id}/abort` | 正在占用驱动的 chat/responses 请求 · 中止其中一个（等同客户端断开）；媒体任务用 `/admin/tasks/{id}/cancel` |
+| GET | `/admin/quota/history?account_id=…&days=7` | 周配额采样与消耗速率预测 |
+| GET/PATCH | `/admin/config` | 生效中的配置（密钥已脱敏）· 无需重启即可应用可热改子集 |
+| POST/GET/DELETE | `/admin/session` | 控制台登录（key → HttpOnly cookie）· 探测 · 退出 |
+| GET | `/admin/process-log?after=<id>&level=…` | 内存中最新的日志行，按 id 游标轮询 |
 | GET | `/dashboard` | 网页控制台（在浏览器里输入 admin key） |
-| POST | `/v1/responses` | 预留，目前返回 501 |
+| POST | `/v1/responses` | Responses API（流式事件与非流式） |
 
 ### 控制台、API key 与请求日志
 
-打开 `http://localhost:18610/dashboard` 并输入 admin key；key 存在浏览器的 local storage 里，以 Bearer token 发给 `/admin/*`。页面展示请求量、错误率、延迟、账号池（启用/禁用、续期、重置）、实时请求日志和 API key 管理。
+打开 `http://localhost:18610/dashboard` 并输入 admin key；key 只在 `POST /admin/session` 用一次，换取 HttpOnly 会话 cookie，不会写入浏览器存储（脚本和插件仍可用 `Authorization: Bearer <admin key>`）。页面展示请求量、错误率、延迟、账号池（启用/禁用、续期、重置）、实时请求日志和 API key 管理。
 
 ![控制台概览](docs/images/dashboard-overview.png)
 
@@ -328,7 +335,13 @@ muse.ai 的会话 cookie 都是 httpOnly，页面脚本读不到；一个小小�
 | `MUSE2API_STREAM_HEARTBEAT_INTERVAL` | `0` | 等第一个流式 token 期间 SSE `: keepalive` 注释的发送间隔（秒）；`0` 关闭 |
 | `MUSE2API_PUBLIC_BASE` | 空 | 媒体链接的公开 base URL；空时从请求推导 |
 | `MUSE2API_POOL_STRATEGY` | `lru` | 账号调度：`lru` / `round_robin` / `affinity` |
+| `MUSE2API_SITE_URL` | `https://muse.ai` | 上游站点地址；驱动使用的所有上游 URL 都由它派生 |
 | `MUSE2API_MAX_FAILOVER` | `2` | 换账号重试的最大次数 |
+| `MUSE2API_AFFINITY_TTL` | `3600` | 会话绑定到所服务账号的秒数（`affinity`）；再次访问会续期，`0` 永不过期 |
+| `MUSE2API_QUOTA_LOW_THRESHOLD_PCT` | `85` | 周配额使用率超过该百分比后，账号只保留已绑定的会话，不再接新会话；`0` 关闭 |
+| `MUSE2API_DEBUG_CAPTURE` | `false` | 浏览器驱动失败时保存 `data/debug/<id>/{meta.json,page.txt,page.png}`（可能包含账号内容） |
+| `MUSE2API_DEBUG_CAPTURE_MAX_DIRS` · `MUSE2API_DEBUG_CAPTURE_RETENTION_DAYS` | `50` · `3` | 抓取目录的数量与保留天数上限 |
+| `MUSE2API_QUOTA_HISTORY_RETENTION_DAYS` | `30` | `data/quota.db` 中保留周配额采样的天数（趋势与预测） |
 | `MUSE2API_ACCOUNT_MAX_CONCURRENCY` | `4` | 每个账号的并行请求数（browser driver：每请求一个 tab，每个 tab 约占 300 MB 内存） |
 | `MUSE2API_WARM_THREADS` | `2` | 每个账号预先开好的对话数。muse.ai 新对话的第一条回复要 20～40 秒，已开好的对话约 5 秒，所以需要新对话的请求会放进预热好的对话里。每个预热对话多花一条短消息的额度；并发至少要 2 |
 | `MUSE2API_CHROMIUM_PATH` | 自动探测 | 浏览器可执行文件路径 |

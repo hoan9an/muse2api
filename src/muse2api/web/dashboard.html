@@ -472,7 +472,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
         <label class="f">Admin key<input type="password" id="login-key" autocomplete="current-password" required placeholder="m2a-…"></label>
         <div class="errbox" id="login-err" hidden></div>
         <button class="btn primary big" type="submit" id="login-btn">Sign in<svg class="i" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-        <p class="login-note">This browser remembers the key in local storage after you sign in.</p>
+        <p class="login-note">The key is exchanged for an HttpOnly session cookie — it is never stored in this browser.</p>
       </form>
     </div>
   </div>
@@ -491,6 +491,8 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
       <a href="#keys" data-page="keys"><svg class="i"><use href="#i-keys"/></svg>API Keys<span class="count" id="nav-keys"></span></a>
       <a href="#requests" data-page="requests"><svg class="i"><use href="#i-requests"/></svg>Requests</a>
       <div class="navlabel" style="margin-top:14px">System</div>
+      <a href="#logs" data-page="logs"><svg class="i"><use href="#i-requests"/></svg>Logs</a>
+      <a href="#settings" data-page="settings"><svg class="i"><use href="#i-auto"/></svg>Settings</a>
       <button type="button" class="navbtn" id="nav-palette"><svg class="i"><use href="#i-command"/></svg>Command palette<kbd>⌘K</kbd></button>
     </nav>
     <div class="side-foot">
@@ -531,6 +533,8 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
           </div>
         </div>
         <div class="tiles" id="tiles"></div>
+        <h2>Running now</h2>
+        <div class="panel"><div class="list" id="ov-active"></div></div>
         <h2>Requests over time</h2>
         <div class="panel pad">
           <div id="chart"></div>
@@ -594,6 +598,8 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
           <div class="grow"><h1>Requests</h1><div class="sub">A log of each request to <span class="mono">/v1/*</span>. Click a row for details.</div></div>
           <div class="tools">
             <label class="chk"><input type="checkbox" id="f-live" checked> <span class="livedot on" id="live-dot"></span> Auto refresh</label>
+            <button class="btn" id="req-export-csv" type="button" title="Download the filtered log as CSV">Export CSV</button>
+            <button class="btn" id="req-export-json" type="button" title="Download the filtered log as JSON">Export JSON</button>
             <button class="btn" id="req-refresh" type="button"><svg class="i"><use href="#i-refresh"/></svg>Refresh</button>
           </div>
         </div>
@@ -634,6 +640,39 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
           </div>
         </div>
       </section>
+
+      <!-- logs -->
+      <section class="page" id="page-logs" hidden>
+        <div class="page-head">
+          <div class="grow"><h1>Logs</h1><div class="sub">Process output kept in memory (newest 2000 lines).</div></div>
+          <div class="tools">
+            <select id="log-level" aria-label="Level">
+              <option value="">All levels</option>
+              <option value="info">Info and up</option>
+              <option value="warning">Warning and up</option>
+              <option value="error">Errors</option>
+            </select>
+            <label class="chk"><input type="checkbox" id="log-follow" checked> Follow</label>
+            <button class="btn" id="log-clear" type="button">Clear view</button>
+          </div>
+        </div>
+        <div class="panel"><pre id="log-view" style="margin:0;padding:12px;max-height:70vh;overflow:auto;font-size:12px;line-height:1.55;white-space:pre-wrap"></pre></div>
+      </section>
+
+      <!-- settings -->
+      <section class="page" id="page-settings" hidden>
+        <div class="page-head">
+          <div class="grow"><h1>Settings</h1><div class="sub">Effective configuration. Live fields apply immediately; everything else keeps the value it started with.</div></div>
+          <div class="tools"><button class="btn" id="cfg-refresh" type="button"><svg class="i"><use href="#i-refresh"/></svg>Reload</button></div>
+        </div>
+        <div class="panel pad" id="cfg-live"></div>
+        <h2>All settings</h2>
+        <div class="panel"><div class="tablewrap"><table>
+          <thead><tr><th>Setting</th><th>Value</th><th>Mode</th></tr></thead>
+          <tbody id="cfg-body"></tbody>
+        </table></div></div>
+        <p class="muted" style="font-size:12px;margin:8px 2px 0">Secrets are masked. Change the rest in <span class="mono">.env</span> and restart, or use <span class="mono">PATCH /admin/config</span> for the live ones.</p>
+      </section>
     </main>
   </div>
 </div>
@@ -663,13 +702,14 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
 <script>
 "use strict";
 (() => {
-  const STORE = "muse2api.adminKey";
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const PAGES = {overview: "Overview", accounts: "Accounts", keys: "API Keys", requests: "Requests"};
+  const PAGES = {overview: "Overview", accounts: "Accounts", keys: "API Keys", requests: "Requests",
+                 logs: "Logs", settings: "Settings"};
   const state = {
     page: "overview", window: "24h", offset: 0, limit: 50,
     accounts: [], keys: [], builtin: [], capabilities: {}, timer: null, modalOpen: false,
+    active: [], debugIds: new Set(), quota: null, logCursor: 0, config: null,
   };
 
   // ---- helpers ----
@@ -679,8 +719,6 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     get: (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } },
     set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} },
   };
-  const getKey = () => store.get(STORE);
-  const setKey = (k) => store.set(STORE, k);
   const now = () => Date.now() / 1000;
   const fmtNum = (n) => n == null ? "–" : Number(n).toLocaleString("en-US");
   const fmtMs = (ms) => ms == null ? "–" : ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(ms < 10000 ? 2 : 1)} s`;
@@ -741,9 +779,11 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
 
   class AuthError extends Error {}
   async function api(path, opts = {}) {
-    const headers = {Authorization: `Bearer ${getKey()}`};
+    const headers = {};
     if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+    // The session cookie is HttpOnly, so credentials ride along and no key is in JS.
     const res = await fetch(path, {method: opts.method || "GET", headers,
+      credentials: "same-origin",
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined});
     if (res.status === 401) throw new AuthError("unauthorized");
     const data = await res.json().catch(() => ({}));
@@ -753,7 +793,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
   async function guarded(fn) {
     try { return await fn(); }
     catch (e) {
-      if (e instanceof AuthError) { setKey(""); stop(); showLogin("Admin key is invalid or has changed."); }
+      if (e instanceof AuthError) { stop(); showLogin("Your session expired. Sign in again."); }
       else toast(e.message || String(e));
     }
   }
@@ -848,9 +888,13 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     const key = $("#login-key").value.trim();
     if (!key) return;
     $("#login-btn").disabled = true;
-    setKey(key);
-    try { await api("/admin/status"); start(); }
-    catch (err) { setKey(""); showLogin(err instanceof AuthError ? "Admin key is incorrect." : err.message); }
+    try {
+      const res = await fetch("/admin/session", {method: "POST", credentials: "same-origin",
+        headers: {"Content-Type": "application/json"}, body: JSON.stringify({key})});
+      if (!res.ok) { showLogin("Admin key is incorrect."); return; }
+      $("#login-key").value = "";
+      start();
+    } catch (err) { showLogin(err.message || String(err)); }
     finally { $("#login-btn").disabled = false; }
   });
 
@@ -927,6 +971,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     return `<div class="quota-bar" title="Quota${plan ? ": " + plan : ""}${pct != null ? ", " + pct + "% used" : ""}${resetsAt ? ", reset: " + resetStr : ""}">
       <div class="qrail"><b class="${barCls}" style="width:${barW}%"></b></div>
       <div class="qmeta"><span>${planStr}${pctStr}</span><span>reset ${resetStr}${agoStr}</span></div>
+      ${quotaTrend(a.id)}
     </div>`;
   }
 
@@ -1003,7 +1048,11 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     $("#accounts").innerHTML = list.map(accountCard).join("")
       || `<div class="panel empty">No accounts yet. Add one with <span class="mono">POST /admin/accounts</span> or a cookie import.</div>`;
   }
-  async function loadAccountsPage() { await loadAccounts(); renderAccounts(); }
+  async function loadAccountsPage() {
+    await loadAccounts();
+    state.quota = await api("/admin/quota/history?days=7").catch(() => null);
+    renderAccounts();
+  }
 
   $("#accounts").addEventListener("change", (e) => {
     const input = e.target.closest("input[data-act=toggle]");
@@ -1062,7 +1111,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     const btn = $("#acc-ext-dl");
     btn.disabled = true;
     try {
-      const res = await fetch("/admin/extension.zip", {headers: {Authorization: `Bearer ${getKey()}`}});
+      const res = await fetch("/admin/extension.zip", {credentials: "same-origin"});
       if (res.status === 404) { toast("This server does not include the extension"); return; }
       if (!res.ok) { toast(`Failed to download the extension: HTTP ${res.status}`); return; }
       const blob = await res.blob();
@@ -1457,7 +1506,12 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     if ($("#f-status").value) p.set("status", $("#f-status").value);
     if ($("#f-path").value.trim()) p.set("path", $("#f-path").value.trim());
     if ($("#f-polls").checked) p.set("hide_polls", "true");
-    const res = await api(`/admin/requests?${p}`);
+    const [res, captures] = await Promise.all([
+      api(`/admin/requests?${p}`),
+      api("/admin/debug").catch(() => ({data: []})),
+    ]);
+    // Which rows have a saved failure capture; empty when the driver saves none.
+    state.debugIds = new Set((captures.data || []).map((d) => d.request_id).filter(Boolean));
     // Flash rows that appeared since the last fetch (live feel).
     const seen = new Set(lastRows.map((x) => x.id));
     lastRows = res.data;
@@ -1468,7 +1522,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
         <td class="hide-sm">${esc(r.model || "")}</td>
         <td>${esc(r.key_name || "")}</td>
         <td class="hide-sm trunc">${esc(accountLabel(r.account_id))}</td>
-        <td class="num" title="${esc(r.error || "")}">${statusBadge(r.status_code)}${taskBadge(r)}</td>
+        <td class="num" title="${esc(r.error || "")}">${statusBadge(r.status_code)}${taskBadge(r)}${debugBadge(r)}</td>
         <td class="num">${esc(fmtMs(r.latency_ms))}</td>
         <td class="hide-sm mono">${esc(r.client_ip || "")}</td>
       </tr>`).join("") || `<tr><td colspan="9" class="empty">No requests match the filters.</td></tr>`;
@@ -1478,25 +1532,203 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     $("#req-next").disabled = end >= res.total;
   }
 
-  function showRequest(r) {
+  async function showRequest(r) {
     const fields = [
-      ["ID", r.id], ["Time", fullTime(r.ts)], ["Method", r.method], ["Path", r.path],
+      ["ID", r.id], ["Request ID", r.request_id], ["Time", fullTime(r.ts)], ["Method", r.method],
+      ["Path", r.path],
       ["Status", r.status_code], ["Latency", fmtMs(r.latency_ms)], ["Stream", r.stream ? "yes" : "no"],
       ["Poll", r.poll ? "yes" : "no"], ["Model", r.model], ["Key", r.key_name ? `${r.key_name} (${r.key_id})` : ""],
       ["Account", r.account_id ? `${accountLabel(r.account_id)} (${r.account_id})` : ""],
       ["Task", r.task_id ? `${r.task_id} · ${r.task_status || "running"}${r.task_ms != null ? ` · ${fmtMs(r.task_ms)}` : ""}` : ""], ["Client IP", r.client_ip], ["User agent", r.user_agent],
     ];
-    modal({
+    const hasCapture = Boolean(r.request_id && state.debugIds && state.debugIds.has(r.request_id));
+    const choice = await modal({
       title: `${r.method} ${r.path}`, wide: true,
       body: `${r.error ? `<div class="errbox">${esc(r.error)}</div>` : ""}
         <dl class="kv">${fields.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v == null || v === "" ? "–" : v)}</dd>`).join("")}</dl>`,
-      actions: [{label: "Close", value: null, primary: true, cls: "primary"}],
+      actions: [
+        ...(hasCapture ? [{label: "Failure capture", value: "debug"}] : []),
+        {label: "Close", value: null, primary: true, cls: "primary"},
+      ],
     });
+    if (choice === "debug") await showCapture(r.request_id);
   }
   $("#req-body").addEventListener("click", (e) => {
     const tr = e.target.closest("tr[data-i]");
-    if (tr) showRequest(lastRows[Number(tr.dataset.i)]);
+    if (tr) guarded(() => showRequest(lastRows[Number(tr.dataset.i)]));
   });
+
+  // ---- failure captures, exports and in-flight requests ----
+  function debugBadge(r) {
+    if (!r.request_id || !state.debugIds || !state.debugIds.has(r.request_id)) return "";
+    return ` <span class="badge plain b-warn" title="A failure capture was saved for this request">dbg</span>`;
+  }
+  async function captureImage(id) {
+    try {
+      const res = await fetch(`/admin/debug/${encodeURIComponent(id)}/screenshot`, {credentials: "same-origin"});
+      if (!res.ok) return "";
+      return URL.createObjectURL(await res.blob());
+    } catch { return ""; }
+  }
+  async function showCapture(id) {
+    const data = await api(`/admin/debug/${encodeURIComponent(id)}`);
+    const meta = data.meta || {}, page = meta.page || {};
+    const rows = [
+      ["Request", meta.request_id], ["Reason", meta.reason], ["Account", meta.account_id],
+      ["Thread", meta.thread_url], ["Page URL", page.url], ["Title", page.title],
+      ["Error", meta.error], ["Captured", fullTime(meta.captured_at)],
+    ];
+    const shot = data.screenshot ? await captureImage(id) : "";
+    await modal({
+      title: `Failure capture · ${data.id || id}`, wide: true,
+      body: `<dl class="kv">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v == null || v === "" ? "–" : v)}</dd>`).join("")}</dl>
+        ${shot ? `<img alt="Page at failure time" src="${shot}" style="max-width:100%;border-radius:8px;margin-top:12px;border:1px solid rgba(127,127,127,.25)">` : ""}
+        ${data.page_text ? `<pre style="white-space:pre-wrap;max-height:320px;overflow:auto;margin-top:12px;font-size:12px">${esc(data.page_text)}</pre>` : ""}`,
+      actions: [{label: "Close", value: null, primary: true, cls: "primary"}],
+    });
+  }
+  function sparkline(points) {
+    if (!points || points.length < 2) return "";
+    const w = 120, h = 26;
+    const ys = points.map((p) => Number(p.used_pct) || 0);
+    const min = Math.min(...ys), max = Math.max(...ys), span = Math.max(1, max - min);
+    const d = ys.map((v, i) => `${i ? "L" : "M"}${(i / (ys.length - 1) * w).toFixed(1)},${(h - ((v - min) / span) * h).toFixed(1)}`).join(" ");
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`;
+  }
+  function quotaTrend(id) {
+    const q = (state.quota && state.quota.accounts && state.quota.accounts[id]) || [];
+    const f = (state.quota && state.quota.forecast && state.quota.forecast[id]) || {};
+    if (!q.length) return "";
+    const badge = f.will_exhaust === true
+      ? `<span class="badge plain b-err" title="Projected from the samples in the window">limit in ${Math.round(f.hours_to_limit)}h</span>`
+      : f.will_exhaust === false ? `<span class="badge plain b-ok">safe until reset</span>` : "";
+    const rate = f.rate_per_hour != null ? `<span class="muted">${f.rate_per_hour.toFixed(1)}%/h</span>` : "";
+    return `<div class="cookie-exp" style="justify-content:space-between" title="Weekly quota over the last 7 days">${sparkline(q)}${rate}${badge}</div>`;
+  }
+  function requestFilters() {
+    const p = new URLSearchParams();
+    if ($("#f-key").value) p.set("key_id", $("#f-key").value);
+    if ($("#f-account").value) p.set("account_id", $("#f-account").value);
+    if ($("#f-status").value) p.set("status", $("#f-status").value);
+    if ($("#f-path").value.trim()) p.set("path", $("#f-path").value.trim());
+    if ($("#f-polls").checked) p.set("hide_polls", "true");
+    return p;
+  }
+  async function exportRequests(fmt) {
+    const p = requestFilters();
+    p.set("format", fmt);
+    const res = await fetch(`/admin/requests/export?${p}`, {credentials: "same-origin"});
+    if (res.status === 401) throw new AuthError("unauthorized");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `muse2api-requests.${fmt}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+  async function loadActive() {
+    const res = await api("/admin/active-requests");
+    state.active = res.data || [];
+    renderActive();
+  }
+  function renderActive() {
+    const el = $("#ov-active");
+    if (!el) return;
+    const rows = state.active || [];
+    el.innerHTML = rows.map((r) => `<div style="display:flex;gap:10px;align-items:center;padding:9px 12px;border-top:1px solid rgba(127,127,127,.2)">
+        <span class="badge plain b-info">${esc(r.stream ? "stream" : "sync")}</span>
+        <span class="mono trunc grow" title="${esc(r.path)}">${esc(r.path)}</span>
+        <span class="muted hide-sm">${esc(r.model || "–")}</span>
+        <span class="mono">${esc(fmtMs(r.elapsed_ms))}</span>
+        <button class="btn sm danger" type="button" data-abort="${esc(r.request_id)}">Abort</button>
+      </div>`).join("") || `<div class="empty" style="padding:14px">Nothing is running.</div>`;
+  }
+  async function loadOverviewPage() {
+    await loadOverview();
+    await loadActive();
+  }
+
+  // ---- logs ----
+  const LOG_CLS = {error: "b-err", critical: "b-err", warning: "b-warn", debug: "b-mute"};
+  function logLine(r) {
+    const t = new Date(r.ts * 1000).toLocaleTimeString([], {hour12: false});
+    return `<div style="padding:1px 0"><span class="muted mono">${esc(t)}</span> <span class="badge plain ${LOG_CLS[r.level] || "b-mute"}">${esc(r.level)}</span> <span class="mono muted">${esc(r.logger)}</span> ${esc(r.message)}</div>`;
+  }
+  async function loadLogs() {
+    const q = new URLSearchParams({after: String(state.logCursor || 0), limit: "300"});
+    if ($("#log-level").value) q.set("level", $("#log-level").value);
+    const res = await api(`/admin/process-log?${q}`);
+    state.logCursor = res.next == null ? state.logCursor : res.next;
+    const items = res.items || [];
+    if (!items.length) return;
+    const view = $("#log-view");
+    const atBottom = view.scrollHeight - view.scrollTop - view.clientHeight < 40;
+    view.insertAdjacentHTML("beforeend", items.map(logLine).join(""));
+    while (view.childElementCount > 1200) view.removeChild(view.firstElementChild);
+    if (atBottom && $("#log-follow").checked) view.scrollTop = view.scrollHeight;
+  }
+  $("#log-level").addEventListener("change", () => {
+    state.logCursor = 0;
+    $("#log-view").innerHTML = "";
+    guarded(loadLogs);
+  });
+  $("#log-clear").addEventListener("click", () => { $("#log-view").innerHTML = ""; });
+  $("#cfg-refresh").addEventListener("click", () => guarded(loadSettingsPage));
+
+  // ---- settings ----
+  const LIVE_FIELDS = [
+    ["account_cooldown", "Cooldown after an upstream error (s)", "number"],
+    ["account_max_concurrency", "Parallel requests per account", "number"],
+    ["affinity_ttl", "Conversation affinity TTL (s)", "number"],
+    ["quota_low_threshold_pct", "Quota % that stops new conversations", "number"],
+    ["chat_timeout", "Chat timeout (s)", "number"],
+    ["first_token_timeout", "First token timeout (s)", "number"],
+    ["image_timeout", "Image timeout (s)", "number"],
+    ["video_timeout", "Video timeout (s)", "number"],
+    ["request_log_retention_days", "Request log retention (days)", "number"],
+    ["media_retention_days", "Media retention (days)", "number"],
+    ["quota_history_retention_days", "Quota history retention (days)", "number"],
+    ["debug_capture", "Save failure captures", "bool"],
+  ];
+  async function loadSettingsPage() {
+    state.config = await api("/admin/config");
+    renderConfig();
+  }
+  function renderConfig() {
+    const cfg = (state.config && state.config.data) || {};
+    const live = new Set((state.config && state.config.live_fields) || []);
+    $("#cfg-live").innerHTML = `<div class="grid2">${LIVE_FIELDS.map(([key, label, type]) => `
+      <label class="f">${esc(label)}<span class="mono muted" style="font-size:11px">${esc(key)}</span>
+        ${type === "bool"
+          ? `<select data-cfg="${esc(key)}"><option value="true"${cfg[key] ? " selected" : ""}>on</option><option value="false"${cfg[key] ? "" : " selected"}>off</option></select>`
+          : `<input type="number" step="0.1" data-cfg="${esc(key)}" value="${esc(cfg[key])}">`}
+      </label>`).join("")}</div>
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+        <button class="btn primary" id="cfg-save" type="button">Apply live settings</button>
+        <span class="muted" style="font-size:12px">No restart needed for these; the rest keeps the value it started with.</span>
+      </div>`;
+    $("#cfg-save").addEventListener("click", () => guarded(saveConfig));
+    $("#cfg-body").innerHTML = Object.keys(cfg).sort().map((key) => `<tr>
+        <td class="mono">${esc(key)}</td>
+        <td class="mono trunc" style="max-width:420px" title="${esc(cfg[key])}">${esc(cfg[key])}</td>
+        <td>${live.has(key) ? `<span class="badge plain b-ok">live</span>` : `<span class="badge plain b-mute">restart</span>`}</td>
+      </tr>`).join("");
+  }
+  async function saveConfig() {
+    const body = {};
+    for (const el of $$("[data-cfg]")) {
+      const key = el.dataset.cfg;
+      body[key] = el.tagName === "SELECT" ? el.value === "true" : Number(el.value);
+    }
+    state.config = await api("/admin/config", {method: "PATCH", body});
+    renderConfig();
+    state.config = await api("/admin/config");
+    renderConfig();
+    toast("Live settings applied");
+  }
   $("#req-body").addEventListener("keydown", (e) => {
     const tr = e.target.closest("tr[data-i]");
     if (tr && e.key === "Enter") showRequest(lastRows[Number(tr.dataset.i)]);
@@ -1614,8 +1846,21 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     if (e.key === "/" && !inField && !state.modalOpen && !$("#app").hidden) { e.preventDefault(); openPal(); }
   });
 
+  $("#req-export-csv").addEventListener("click", () => guarded(() => exportRequests("csv")));
+  $("#req-export-json").addEventListener("click", () => guarded(() => exportRequests("json")));
+  $("#ov-active").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-abort]");
+    if (!b) return;
+    guarded(async () => {
+      await api(`/admin/active-requests/${encodeURIComponent(b.dataset.abort)}/abort`, {method: "POST"});
+      toast("Abort requested");
+      await loadActive();
+    });
+  });
+
   // ---- routing: #page or #requests?key=..&account=.. ----
-  const loaders = {overview: loadOverview, accounts: loadAccountsPage, keys: loadKeys, requests: loadRequests};
+  const loaders = {overview: loadOverviewPage, accounts: loadAccountsPage, keys: loadKeys,
+                   requests: loadRequests, logs: loadLogs, settings: loadSettingsPage};
   function parseHash() {
     const [page, query] = location.hash.replace(/^#/, "").split("?");
     return {page: loaders[page] ? page : "", params: new URLSearchParams(query || "")};
@@ -1668,7 +1913,11 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !state.modalOpen && $("#app").classList.contains("drawer")) { setDrawer(false); $("#burger").focus(); }
   });
-  $("#signout").addEventListener("click", () => { setKey(""); stop(); showLogin(); });
+  $("#signout").addEventListener("click", async () => {
+    try { await fetch("/admin/session", {method: "DELETE", credentials: "same-origin"}); } catch {}
+    stop();
+    showLogin();
+  });
 
   // ---- live countdowns, every second ----
   let refetchAt = 0;
@@ -1699,7 +1948,12 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     const p = state.page;
     if (p === "requests" && $("#f-live").checked) guarded(loadRequests);
     else if (p === "accounts" && n % 2 === 0) guarded(loadAccountsPage);
-    else if ((p === "overview" || p === "keys") && n % 6 === 0) guarded(loaders[p]);
+    else if (p === "overview" && n % 2 === 0) {
+      guarded(loadActive);
+      if (n % 6 === 0) guarded(loadOverview);
+    }
+    else if (p === "keys" && n % 6 === 0) guarded(loadKeys);
+    else if (p === "logs") guarded(loadLogs);
     // Keep the sidebar health indicator fresh on pages that do not fetch status.
     if ((p === "requests" || p === "keys") && n % 3 === 0) guarded(loadAccounts);
   }
@@ -1710,13 +1964,19 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     $("#app").hidden = false;
     // Labels for filters and names come from these two lists.
     await guarded(async () => { await loadAccounts(); await fetchKeys(); });
-    if (!getKey()) return;
     route();
     let n = 0;
     state.timer = setInterval(() => tick(++n), 5000);
   }
 
-  if (getKey()) start(); else showLogin();
+  (async () => {
+    try {
+      const res = await fetch("/admin/session", {credentials: "same-origin"});
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.authenticated) { start(); return; }
+    } catch {}
+    showLogin();
+  })();
 })();
 </script>
 </body>
