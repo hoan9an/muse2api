@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import shlex
 import shutil
 from pathlib import Path
 
@@ -35,12 +36,13 @@ def find_chromium(configured: str = "") -> str:
 
 class ChromiumProcess:
     def __init__(self, executable: str, port: int, profile_dir: Path, headless: bool = True,
-                 proxy: str = ""):
+                 proxy: str = "", extra_flags: str = ""):
         self.executable = executable
         self.port = port
         self.profile_dir = profile_dir
         self.headless = headless
         self.proxy = proxy
+        self.extra_flags = shlex.split(extra_flags)
         self.proc: asyncio.subprocess.Process | None = None
 
     @property
@@ -86,6 +88,7 @@ class ChromiumProcess:
             args[1:1] = ["--headless=new", "--disable-gpu"]
         if hasattr(os, "geteuid") and os.geteuid() == 0:
             args.insert(1, "--no-sandbox")
+        args[1:1] = self.extra_flags
 
         log.info("launching Chromium: %s", self.executable)
         self.proc = await asyncio.create_subprocess_exec(

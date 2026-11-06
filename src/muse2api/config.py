@@ -60,6 +60,11 @@ class Settings(BaseSettings):
         "Python's own calls (session renewal) follow http_proxy/https_proxy instead.",
     )
     browser_profile_dir: Path | None = None
+    chromium_flags: str = Field(
+        default="",
+        description="Extra Chromium launch flags, space-separated, appended after the "
+        "built-in ones (e.g. --no-sandbox when the kernel blocks the sandbox).",
+    )
     page_ready_timeout: float = 45.0
     warm_threads: int = Field(
         default=2,

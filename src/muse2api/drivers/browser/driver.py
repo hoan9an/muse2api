@@ -136,7 +136,7 @@ class BrowserDriver(MuseDriver):
         exe = find_chromium(self.settings.chromium_path)
         self._chromium = ChromiumProcess(
             exe, self.settings.cdp_port, self.settings.profile_dir, self.settings.headless,
-            proxy=self.settings.browser_proxy,
+            proxy=self.settings.browser_proxy, extra_flags=self.settings.chromium_flags,
         )
         ws_url = await self._chromium.start()
         self._browser = await CDPSession.connect(ws_url)
