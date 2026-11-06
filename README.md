@@ -1,4 +1,6 @@
-<h1 align="center">muse2api</h1>
+<h1 align="center">Muse2API</h1>
+
+<p align="center"><sub>Muse<b>2</b>API — the muse.ai web app, behind one clean API</sub></p>
 
 <p align="center">
   <b>English</b> | <a href="README.zh-CN.md">中文</a>

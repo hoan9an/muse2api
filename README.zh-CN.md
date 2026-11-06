@@ -1,4 +1,4 @@
-<h1 align="center">muse2api</h1>
+<h1 align="center">Muse2API</h1>
 
 <p align="center">
   <a href="README.md">English</a> | <b>中文</b>

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23e5ac82%22/%3E%3C/svg%3E">
-<title>muse2api dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%229%22 fill=%22%23e5ac82%22/%3E%3Cpath d=%22M8.5 22.5V11l7.5 6.4L23.5 11v11.5%22 fill=%22none%22 stroke=%22%23241b15%22 stroke-width=%222.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3Ccircle cx=%2223.5%22 cy=%229.2%22 r=%221.9%22 fill=%22%23241b15%22 opacity=%22.6%22/%3E%3C/svg%3E">
+<title>Muse2API · Console</title>
 <script>
   // Apply the saved theme before first paint.
   try { const t = localStorage.getItem("muse2api.theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
@@ -101,6 +101,10 @@ svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor;
 .wordmark { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-weight: 700; font-size: 15px; letter-spacing: -.02em; }
 .wordmark .glyph { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; background: linear-gradient(140deg, #edb78b, #e5ac82 55%, #c9895c); color: #241b15; font-size: 12px; font-weight: 800; letter-spacing: -.04em; }
 .wordmark small { display: block; font-weight: 500; font-size: 11px; color: var(--side-muted); letter-spacing: 0; }
+.wordmark .mark { width: 30px; height: 30px; flex: none; border-radius: 9px; }
+.wordmark .brandname { font-family: var(--sans); font-size: 16px; font-weight: 650; letter-spacing: -.025em; line-height: 1.1; }
+.wordmark .brandname b { color: var(--side-accent); font-weight: 700; }
+.login-brand .wordmark .brandname b { color: var(--accent); }
 .login-card .wordmark small { color: var(--muted); }
 .side .wordmark { padding: 18px 18px 14px; color: #f2f0e8; }
 .health { margin: 0 12px 10px; padding: 9px 10px; border-radius: 8px; background: var(--side-2); border: 1px solid var(--side-border); display: grid; grid-template-columns: auto 1fr; gap: 0 9px; align-items: center; font-size: 12.5px; }
@@ -483,6 +487,16 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
   <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3M16.5 6.5l2.5 2.5M14 9l2 2"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c.8-3.5 3.8-5.5 7.5-5.5s6.7 2 7.5 5.5"/></symbol>
   <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H13L13 2z"/></symbol>
+  <defs>
+    <linearGradient id="brand-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3cba4"/><stop offset=".55" stop-color="#e5ac82"/><stop offset="1" stop-color="#c9895c"/>
+    </linearGradient>
+  </defs>
+  <symbol id="i-brand" viewBox="0 0 32 32">
+    <rect width="32" height="32" rx="9" fill="url(#brand-grad)"/>
+    <path d="M8.5 22.5V11l7.5 6.4L23.5 11v11.5" fill="none" stroke="#241b15" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="23.5" cy="9.2" r="1.9" fill="#241b15" opacity=".6"/>
+  </symbol>
   <symbol id="i-logs" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M7 9.5l2.5 2.5L7 14.5M12.5 15H17"/></symbol>
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h8.5M17.5 7H20M4 17h3.5M12.5 17H20"/><circle cx="15" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></symbol>
   <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></symbol>
@@ -493,7 +507,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
 <div class="login" id="login" hidden>
   <div class="login-split">
     <div class="login-brand">
-      <div class="wordmark"><span class="glyph">m2a</span><span>muse2api<small>OpenAI-compatible gateway</small></span></div>
+      <div class="wordmark"><svg class="mark" aria-hidden="true"><use href="#i-brand"/></svg><span><span class="brandname">Muse<b>2</b>API</span><small>OpenAI-compatible gateway</small></span></div>
       <div class="brand-copy">
         <h2>muse.ai, behind one<br>clean API.</h2>
         <p>Chat, image and video endpoints for any OpenAI client — account pooling, failover, quota tracking and request analytics in one place.</p>
@@ -503,7 +517,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
           <li><svg class="i"><use href="#i-key"/></svg><div><b>Client keys &amp; logs</b><span>Per-key usage, request tracing, retention</span></div></li>
         </ul>
       </div>
-      <div class="brand-foot">muse2api</div>
+      <div class="brand-foot">Muse2API · muse.ai gateway</div>
     </div>
     <div class="login-card">
       <h1>Sign in</h1>
@@ -521,7 +535,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
 
 <div class="app" id="app" hidden>
   <aside class="side" id="side" aria-label="Navigation">
-    <div class="wordmark"><span class="glyph" aria-hidden="true">m2a</span><span>muse2api<small id="version">admin</small></span></div>
+    <div class="wordmark"><svg class="mark" aria-hidden="true"><use href="#i-brand"/></svg><span><span class="brandname">Muse<b>2</b>API</span><small id="version">admin</small></span></div>
     <div class="health" id="health" role="status" aria-live="polite">
       <span class="pulse" id="health-dot"></span><b id="health-text">Checking…</b><small id="health-sub">&nbsp;</small>
     </div>
@@ -2125,7 +2139,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     }
     for (const p of Object.keys(loaders)) $(`#page-${p}`).hidden = p !== page;
     $("#top-title").textContent = PAGES[page];
-    document.title = `${PAGES[page]} · muse2api dashboard`;
+    document.title = `${PAGES[page]} · Muse2API`;
     store.set("muse2api.page", page);
     setDrawer(false);
     guarded(loaders[page]);
