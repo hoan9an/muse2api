@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -205,9 +205,18 @@ label.chk input[type=checkbox] { accent-color: var(--accent); width: 15px; heigh
 .errbox { background: var(--err-bg); color: var(--err); }
 .infobox { background: var(--panel-2); color: var(--muted); }
 .empty { color: var(--muted); padding: 22px 16px; text-align: center; font-size: 13px; }
+.empty b { display: block; color: var(--text); font-weight: 600; margin-bottom: 3px; }
+.empty span { display: block; color: var(--faint); font-size: 12px; max-width: 48ch; margin: 0 auto; line-height: 1.5; }
+.stamp { color: var(--faint); font-size: 12px; white-space: nowrap; }
+.page-head .tools { flex-wrap: nowrap; }
+.page-head .tools > * { flex: none; }
+.page-head .tools > .searchbar { flex: 1 1 170px; min-width: 120px; }
+@media (max-width: 860px) { .page-head .tools { flex-wrap: wrap; } }
 
 /* ---------- tiles ---------- */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+@media (min-width: 1120px) { .tiles.kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (min-width: 720px) and (max-width: 1119px) { .tiles.kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .tile { padding: 14px 16px 12px; position: relative; overflow: hidden; }
 .tile .k { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
 .tile .v { font-family: var(--mono); font-size: 26px; font-weight: 650; letter-spacing: -.03em; margin-top: 5px; font-variant-numeric: tabular-nums; }
@@ -235,6 +244,25 @@ label.chk input[type=checkbox] { accent-color: var(--accent); width: 15px; heigh
 .li .n.e { color: var(--err); }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--faint); }
 .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.err { background: var(--err); } .dot.info { background: var(--info); }
+
+/* ---------- process log ---------- */
+.logview { margin: 0; padding: 6px 0; max-height: 66vh; overflow: auto; font-family: var(--mono); font-size: 12px; line-height: 1.55; }
+.logline { display: grid; grid-template-columns: 60px 52px 164px minmax(0, 1fr); gap: 10px; padding: 1px 14px; align-items: baseline; }
+.logline:hover { background: var(--panel-2); }
+.logline .t { color: var(--faint); }
+.logline .lv { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.logline .lv.info { color: var(--info); }
+.logline .lv.warning { color: var(--warn); }
+.logline .lv.error, .logline .lv.critical { color: var(--err); }
+.logline .lv.debug { color: var(--faint); }
+.logline .lg { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.logline .m { white-space: pre-wrap; overflow-wrap: anywhere; }
+.logmeta { display: flex; align-items: center; gap: 10px; color: var(--faint); font-size: 12px; padding: 8px 2px 0; }
+.logmeta button { margin-left: auto; }
+@media (max-width: 720px) {
+  .logline { grid-template-columns: 54px 44px minmax(0, 1fr); }
+  .logline .lg { display: none; }
+}
 
 /* ---------- tables ---------- */
 .tablewrap { overflow-x: auto; }
@@ -446,6 +474,8 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
   <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3M16.5 6.5l2.5 2.5M14 9l2 2"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c.8-3.5 3.8-5.5 7.5-5.5s6.7 2 7.5 5.5"/></symbol>
   <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H13L13 2z"/></symbol>
+  <symbol id="i-logs" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M7 9.5l2.5 2.5L7 14.5M12.5 15H17"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h8.5M17.5 7H20M4 17h3.5M12.5 17H20"/><circle cx="15" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></symbol>
 </svg>
 
 <!-- login screen -->
@@ -491,8 +521,8 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
       <a href="#keys" data-page="keys"><svg class="i"><use href="#i-keys"/></svg>API Keys<span class="count" id="nav-keys"></span></a>
       <a href="#requests" data-page="requests"><svg class="i"><use href="#i-requests"/></svg>Requests</a>
       <div class="navlabel" style="margin-top:14px">System</div>
-      <a href="#logs" data-page="logs"><svg class="i"><use href="#i-requests"/></svg>Logs</a>
-      <a href="#settings" data-page="settings"><svg class="i"><use href="#i-auto"/></svg>Settings</a>
+      <a href="#logs" data-page="logs"><svg class="i"><use href="#i-logs"/></svg>Logs</a>
+      <a href="#settings" data-page="settings"><svg class="i"><use href="#i-sliders"/></svg>Settings</a>
       <button type="button" class="navbtn" id="nav-palette"><svg class="i"><use href="#i-command"/></svg>Command palette<kbd>⌘K</kbd></button>
     </nav>
     <div class="side-foot">
@@ -522,7 +552,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
       <!-- overview -->
       <section class="page" id="page-overview" hidden>
         <div class="page-head">
-          <div class="grow"><h1>Overview</h1><div class="sub">Traffic on <span class="mono">/v1/*</span>, excluding task polls.</div></div>
+          <div class="grow"><h1>Overview</h1><div class="sub">Traffic on <span class="mono">/v1/*</span>, excluding task polls. <span class="stamp" id="ov-stamp"></span></div></div>
           <div class="tools">
             <div class="seg" id="window" role="group" aria-label="Time range">
               <button type="button" data-w="1h" aria-pressed="false">1h</button>
@@ -532,7 +562,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
             <button class="btn" id="ov-refresh" type="button"><svg class="i"><use href="#i-refresh"/></svg>Refresh</button>
           </div>
         </div>
-        <div class="tiles" id="tiles"></div>
+        <div class="tiles kpis" id="tiles"></div>
         <h2>Running now</h2>
         <div class="panel"><div class="list" id="ov-active"></div></div>
         <h2>Requests over time</h2>
@@ -543,8 +573,8 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
         <div class="grid2" style="margin-top: 10px;">
           <div class="panel"><div class="cardhead">Top API keys<a class="link" href="#keys">Manage keys</a></div><div class="list" id="ov-keys"></div></div>
           <div class="panel"><div class="cardhead">Accounts<a class="link" href="#accounts">View all</a></div><div class="list" id="ov-accounts"></div></div>
-          <div class="panel"><div class="cardhead">Theo model</div><div class="list" id="ov-models"></div></div>
-          <div class="panel"><div class="cardhead">Theo status code</div><div class="list" id="ov-status"></div></div>
+          <div class="panel"><div class="cardhead">By model</div><div class="list" id="ov-models"></div></div>
+          <div class="panel"><div class="cardhead">By status code</div><div class="list" id="ov-status"></div></div>
         </div>
       </section>
 
@@ -646,27 +676,41 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
         <div class="page-head">
           <div class="grow"><h1>Logs</h1><div class="sub">Process output kept in memory (newest 2000 lines).</div></div>
           <div class="tools">
+            <label class="searchbar" style="flex:1 1 170px;min-width:120px;max-width:230px;height:32px">
+              <svg class="i"><use href="#i-search"/></svg>
+              <input id="log-q" type="search" placeholder="Filter lines…" aria-label="Filter log lines"
+                     style="border:0;background:transparent;outline:none;width:100%">
+            </label>
             <select id="log-level" aria-label="Level">
               <option value="">All levels</option>
               <option value="info">Info and up</option>
               <option value="warning">Warning and up</option>
-              <option value="error">Errors</option>
+              <option value="error">Errors only</option>
             </select>
             <label class="chk"><input type="checkbox" id="log-follow" checked> Follow</label>
-            <button class="btn" id="log-clear" type="button">Clear view</button>
+            <button class="btn" id="log-copy" type="button"><svg class="i"><use href="#i-copy"/></svg>Copy</button>
+            <button class="btn" id="log-clear" type="button" title="Clear the view" aria-label="Clear the view"><svg class="i"><use href="#i-x"/></svg></button>
           </div>
         </div>
-        <div class="panel"><pre id="log-view" style="margin:0;padding:12px;max-height:70vh;overflow:auto;font-size:12px;line-height:1.55;white-space:pre-wrap"></pre></div>
+        <div class="panel" style="padding:4px 0"><div class="logview" id="log-view"></div></div>
+        <div class="logmeta"><span id="log-meta">Waiting for output…</span><button class="btn sm" id="log-jump" type="button" hidden>Jump to latest</button></div>
       </section>
 
       <!-- settings -->
       <section class="page" id="page-settings" hidden>
         <div class="page-head">
           <div class="grow"><h1>Settings</h1><div class="sub">Effective configuration. Live fields apply immediately; everything else keeps the value it started with.</div></div>
-          <div class="tools"><button class="btn" id="cfg-refresh" type="button"><svg class="i"><use href="#i-refresh"/></svg>Reload</button></div>
+          <div class="tools">
+            <label class="searchbar" style="flex:1 1 170px;min-width:120px;max-width:220px;height:32px">
+              <svg class="i"><use href="#i-search"/></svg>
+              <input id="cfg-q" type="search" placeholder="Filter settings…" aria-label="Filter settings"
+                     style="border:0;background:transparent;outline:none;width:100%">
+            </label>
+            <button class="btn" id="cfg-refresh" type="button"><svg class="i"><use href="#i-refresh"/></svg>Reload</button>
+          </div>
         </div>
         <div class="panel pad" id="cfg-live"></div>
-        <h2>All settings</h2>
+        <div style="display:flex;align-items:baseline;gap:10px;margin:18px 0 8px"><h2 style="margin:0">All settings</h2><span class="stamp" id="cfg-meta"></span></div>
         <div class="panel"><div class="tablewrap"><table>
           <thead><tr><th>Setting</th><th>Value</th><th>Mode</th></tr></thead>
           <tbody id="cfg-body"></tbody>
@@ -709,7 +753,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
   const state = {
     page: "overview", window: "24h", offset: 0, limit: 50,
     accounts: [], keys: [], builtin: [], capabilities: {}, timer: null, modalOpen: false,
-    active: [], debugIds: new Set(), quota: null, logCursor: 0, config: null,
+    active: [], debugIds: new Set(), quota: null, logCursor: 0, logSeen: 0, config: null,
   };
 
   // ---- helpers ----
@@ -1194,16 +1238,20 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
 
   function meterList(rows, label, opts = {}) {
     const max = Math.max(1, ...rows.map((r) => r.count));
+    const total = rows.reduce((s, r) => s + r.count, 0) || 1;
     return rows.slice(0, opts.limit || 6).map((r) => {
-      const okW = ((r.count - (r.errors || 0)) / max) * 100, errW = ((r.errors || 0) / max) * 100;
+      const err = r.errors || 0;
+      const okW = ((r.count - err) / max) * 100, errW = (err / max) * 100;
+      const share = (r.count / total) * 100;
       const attrs = opts.attrs ? opts.attrs(r) : "";
       return `<div class="li${attrs ? " click" : ""}" ${attrs}>
         <span class="lbl" title="${esc(label(r))}">${esc(label(r))}</span>
         <span class="meter" aria-hidden="true"><b style="width:${okW}%"></b><b class="e" style="width:${errW}%"></b></span>
         <span class="n">${fmtNum(r.count)}</span>
-        <span class="n ${r.errors ? "e" : "muted"}" title="4xx/5xx errors or failed tasks">${r.errors ? `${fmtNum(r.errors)} errors` : "–"}</span>
+        <span class="n ${err ? "e" : "muted"}" title="${err ? "4xx/5xx errors or failed tasks" : "share of requests in this window"}">${err
+          ? `${fmtNum(err)} err` : `${share >= 10 ? share.toFixed(0) : share.toFixed(1)}%`}</span>
       </div>`;
-    }).join("") || `<div class="empty">No requests yet</div>`;
+    }).join("") || `<div class="empty"><b>No traffic yet</b><span>Calls to <span class="mono">/v1/*</span> in this window are counted here.</span></div>`;
   }
 
   function accountsSummary() {
@@ -1235,20 +1283,26 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     const [stats, st] = await Promise.all([api(`/admin/stats?window=${state.window}`), loadAccounts()]);
     const pool = st.accounts || {};
     const activeKeys = state.keys.filter((k) => !k.revoked).length;
+    const okRate = stats.total ? 1 - stats.error_rate : null;
     $("#tiles").innerHTML = [
       tile("Requests", fmtNum(stats.total), `last ${stats.window}`),
+      tile("Success rate", okRate == null ? "—" : fmtPct(okRate),
+        okRate == null ? "no traffic yet" : `${fmtNum(stats.total - stats.errors)} of ${fmtNum(stats.total)} served`),
       tile("Error rate", fmtPct(stats.error_rate), `${fmtNum(stats.errors)} errors · ${fmtNum(stats.server_errors)} 5xx`, stats.error_rate >= 0.1 ? "bad" : ""),
       tile("p95 latency", fmtMs(stats.latency_ms.p95), `p50 ${fmtMs(stats.latency_ms.p50)}`),
       tile("Accounts ready", `${fmtNum(pool.available)}/${fmtNum(pool.total)}`, `${fmtNum(pool.inflight)} in flight`, pool.total && !pool.available ? "warn" : ""),
       tile("API keys", fmtNum(activeKeys), `active · ${fmtNum(state.keys.length - activeKeys)} revoked`),
     ].join("");
+    $("#ov-stamp").textContent = `· updated ${clock(now())}`;
     lastStats = stats;
-    $("#chart").innerHTML = chart(stats.series, stats.bucket_seconds);
+    $("#chart").innerHTML = stats.total
+      ? chart(stats.series, stats.bucket_seconds)
+      : `<div class="empty" style="padding:56px 16px"><b>No traffic in this window</b><span>Bars appear within 5 seconds of the first call to <span class="mono">/v1/*</span>.</span></div>`;
     const b = stats.bucket_seconds;
     $("#bucket-note").textContent = `each bar ${b >= 3600 ? `${b / 3600}h` : `${b / 60}m`}`;
     $("#ov-keys").innerHTML = meterList(stats.by_key, (r) => keyLabel(r.key_id, r.key_name),
       {attrs: (r) => r.key_id ? `data-key="${esc(r.key_id)}" tabindex="0"` : ""});
-    $("#ov-models").innerHTML = meterList(stats.by_model, (r) => r.model || "(none)");
+    $("#ov-models").innerHTML = meterList(stats.by_model, (r) => r.model || "unattributed");
     $("#ov-status").innerHTML = meterList(stats.by_status, (r) => String(r.status_code));
     $("#ov-accounts").innerHTML = accountsSummary();
   }
@@ -1644,7 +1698,7 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
         <span class="muted hide-sm">${esc(r.model || "–")}</span>
         <span class="mono">${esc(fmtMs(r.elapsed_ms))}</span>
         <button class="btn sm danger" type="button" data-abort="${esc(r.request_id)}">Abort</button>
-      </div>`).join("") || `<div class="empty" style="padding:14px">Nothing is running.</div>`;
+      </div>`).join("") || `<div class="empty"><b>Nothing in flight</b><span>Streaming and sync calls appear here while they run, each with an Abort button.</span></div>`;
   }
   async function loadOverviewPage() {
     await loadOverview();
@@ -1652,10 +1706,37 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
   }
 
   // ---- logs ----
-  const LOG_CLS = {error: "b-err", critical: "b-err", warning: "b-warn", debug: "b-mute"};
-  function logLine(r) {
+  // One ring of records so the level filter and the free-text filter can be applied
+  // without asking the server again; the cursor still keeps each poll incremental.
+  const LOG_RANK = {debug: 0, info: 0, warning: 1, error: 2, critical: 2};
+  const LOG_MIN = {"": 0, info: 0, warning: 1, error: 2};
+  const LOG_LIMIT = 600;
+  const LOGS = [];
+  function logRow(r) {
     const t = new Date(r.ts * 1000).toLocaleTimeString([], {hour12: false});
-    return `<div style="padding:1px 0"><span class="muted mono">${esc(t)}</span> <span class="badge plain ${LOG_CLS[r.level] || "b-mute"}">${esc(r.level)}</span> <span class="mono muted">${esc(r.logger)}</span> ${esc(r.message)}</div>`;
+    const lv = String(r.level || "info").toLowerCase();
+    return `<div class="logline"><span class="t">${esc(t)}</span><span class="lv ${esc(lv)}">${esc(lv)}</span>`
+      + `<span class="lg" title="${esc(r.logger)}">${esc(r.logger)}</span><span class="m">${esc(r.message)}</span></div>`;
+  }
+  function visibleLogs() {
+    const min = LOG_MIN[$("#log-level").value] ?? 0;
+    const q = $("#log-q").value.trim().toLowerCase();
+    return LOGS.filter((r) => (LOG_RANK[String(r.level || "info").toLowerCase()] ?? 0) >= min)
+      .filter((r) => !q || `${r.logger} ${r.message}`.toLowerCase().includes(q));
+  }
+  function renderLogs() {
+    const view = $("#log-view");
+    const rows = visibleLogs();
+    const atBottom = view.scrollHeight - view.scrollTop - view.clientHeight < 40;
+    view.innerHTML = rows.length ? rows.map(logRow).join("") : `<div class="empty" style="padding:38px 16px">${LOGS.length
+      ? `<b>No line matches this filter</b><span>${fmtNum(LOGS.length)} lines are buffered — clear the filter to read them.</span>`
+      : "<b>Waiting for output</b><span>The server keeps the newest 2000 lines in memory; they show up here as they are written.</span>"}</div>`;
+    $("#log-meta").textContent = (rows.length === LOGS.length
+      ? `${fmtNum(LOGS.length)} lines buffered`
+      : `${fmtNum(rows.length)} of ${fmtNum(LOGS.length)} lines`)
+      + (state.logSeen ? ` · updated ${ago(state.logSeen)}` : "");
+    if (atBottom && $("#log-follow").checked) view.scrollTop = view.scrollHeight;
+    $("#log-jump").hidden = !(view.scrollHeight - view.scrollTop - view.clientHeight > 120);
   }
   async function loadLogs() {
     const q = new URLSearchParams({after: String(state.logCursor || 0), limit: "300"});
@@ -1663,20 +1744,37 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
     const res = await api(`/admin/process-log?${q}`);
     state.logCursor = res.next == null ? state.logCursor : res.next;
     const items = res.items || [];
-    if (!items.length) return;
-    const view = $("#log-view");
-    const atBottom = view.scrollHeight - view.scrollTop - view.clientHeight < 40;
-    view.insertAdjacentHTML("beforeend", items.map(logLine).join(""));
-    while (view.childElementCount > 1200) view.removeChild(view.firstElementChild);
-    if (atBottom && $("#log-follow").checked) view.scrollTop = view.scrollHeight;
+    if (items.length) {
+      LOGS.push(...items);
+      if (LOGS.length > LOG_LIMIT) LOGS.splice(0, LOGS.length - LOG_LIMIT);
+      state.logSeen = now();
+    }
+    renderLogs();
   }
   $("#log-level").addEventListener("change", () => {
     state.logCursor = 0;
-    $("#log-view").innerHTML = "";
+    LOGS.length = 0;
+    renderLogs();
     guarded(loadLogs);
   });
-  $("#log-clear").addEventListener("click", () => { $("#log-view").innerHTML = ""; });
+  $("#log-q").addEventListener("input", renderLogs);
+  $("#log-view").addEventListener("scroll", () => {
+    const v = $("#log-view");
+    $("#log-jump").hidden = !(v.scrollHeight - v.scrollTop - v.clientHeight > 120);
+  });
+  $("#log-jump").addEventListener("click", () => {
+    const v = $("#log-view");
+    v.scrollTop = v.scrollHeight;
+  });
+  $("#log-copy").addEventListener("click", async () => {
+    const text = visibleLogs().map((r) => `${new Date(r.ts * 1000).toISOString()} ${String(r.level).toUpperCase()} ${r.logger} ${r.message}`).join("\n");
+    if (!text) return toast("Nothing to copy");
+    try { await navigator.clipboard.writeText(text); toast(`Copied ${fmtNum(visibleLogs().length)} lines`); }
+    catch { toast("Copy failed — select the text instead"); }
+  });
+  $("#log-clear").addEventListener("click", () => { LOGS.length = 0; renderLogs(); });
   $("#cfg-refresh").addEventListener("click", () => guarded(loadSettingsPage));
+  $("#cfg-q").addEventListener("input", () => { if (state.config) renderConfig(); });
 
   // ---- settings ----
   const LIVE_FIELDS = [
@@ -1711,11 +1809,15 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
         <span class="muted" style="font-size:12px">No restart needed for these; the rest keeps the value it started with.</span>
       </div>`;
     $("#cfg-save").addEventListener("click", () => guarded(saveConfig));
-    $("#cfg-body").innerHTML = Object.keys(cfg).sort().map((key) => `<tr>
+    const keys = Object.keys(cfg).sort();
+    const q = (($("#cfg-q") && $("#cfg-q").value) || "").trim().toLowerCase();
+    const shown = keys.filter((k) => !q || k.includes(q) || String(cfg[k]).toLowerCase().includes(q));
+    $("#cfg-meta").textContent = `${fmtNum(shown.length)} of ${fmtNum(keys.length)} settings · ${fmtNum(live.size)} apply live`;
+    $("#cfg-body").innerHTML = shown.map((key) => `<tr>
         <td class="mono">${esc(key)}</td>
         <td class="mono trunc" style="max-width:420px" title="${esc(cfg[key])}">${esc(cfg[key])}</td>
         <td>${live.has(key) ? `<span class="badge plain b-ok">live</span>` : `<span class="badge plain b-mute">restart</span>`}</td>
-      </tr>`).join("");
+      </tr>`).join("") || `<tr><td colspan="3" class="empty"><b>No setting matches that filter</b><span>Try a shorter word, or clear the box.</span></td></tr>`;
   }
   async function saveConfig() {
     const body = {};
@@ -1723,11 +1825,11 @@ tr.row-new td { animation: rowin 1.8s ease-out; }
       const key = el.dataset.cfg;
       body[key] = el.tagName === "SELECT" ? el.value === "true" : Number(el.value);
     }
-    state.config = await api("/admin/config", {method: "PATCH", body});
-    renderConfig();
+    const res = await api("/admin/config", {method: "PATCH", body});
     state.config = await api("/admin/config");
     renderConfig();
-    toast("Live settings applied");
+    const n = Object.keys(res.applied || {}).length;
+    toast(n ? `Applied ${n} live setting${n === 1 ? "" : "s"}` : "No live setting changed");
   }
   $("#req-body").addEventListener("keydown", (e) => {
     const tr = e.target.closest("tr[data-i]");
