@@ -629,14 +629,25 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
 
 .topbar .langs { position: relative; display: inline-flex; width: auto; padding: 0;
   background: none; border: 0; }
-.lang-pop { position: absolute; top: calc(100% + 6px); right: 0; width: 176px; padding: 4px;
+.lang-pop { position: absolute; top: calc(100% + 12px); right: 0; width: 176px; padding: 4px;
   display: flex; flex-direction: column; gap: 2px; background: var(--panel);
   border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow-lg); z-index: 60; }
 .lang-pop[hidden] { display: none; }
 .lang-pop button { width: 100%; text-align: left; padding: 9px 10px; font-size: 13px;
   background: none; border: 0; border-radius: var(--r-sm); color: var(--text); cursor: pointer; }
-.lang-pop button:hover { background: var(--panel-2); }
-.lang-pop button[aria-checked="true"] { background: #f3e8dc; color: #7c3f1c; font-weight: 600; }
+.lang-pop button:hover { background: var(--panel-2); }.lang-pop button[aria-checked="true"] { background: #f3e8dc; color: #7c3f1c; font-weight: 600; }
+.lang-pop button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+#lang-btn .i { width: 18px; height: 18px; }
+@media (max-width: 860px) {
+  .topbar { padding: 8px 10px; gap: 8px; }
+  .topbar .title { max-width: 38vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .top-right { min-width: 0; gap: 4px; margin-left: auto; }
+  .topbar .cmdk { width: auto; min-width: 36px; flex: 1 1 44px; padding: 0 8px; }
+  .topbar .cmdk .cmdk-label, .topbar .cmdk kbd { display: none; }
+  .topbar .cmdk svg { margin: 0 auto; }
+  .topbar .iconbtn, .topbar .burger { width: 30px; height: 30px; }
+  .topbar .langs { flex: none; }
+}
 </style>
 </head>
 <body>
@@ -743,7 +754,7 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
         <button type="button" class="iconbtn" id="theme-toggle" aria-label="Switch to light theme" title="Theme"><svg class="i"><use href="#i-moon"/></svg></button>
         <div class="langs" id="lang-menu">
           <button type="button" class="iconbtn" id="lang-btn" aria-label="Language" aria-haspopup="menu" aria-expanded="false" title="Language">
-            <svg class="i" viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17c-.67 1.92-1.73 3.75-3.17 5.35A15.6 15.6 0 0 1 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56L2.58 17.6 4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
+            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.8 5.2h8.4M7 3.4v1.8M4.6 9.3c1.5 2.3 3.5 4 5.9 5M10.6 8.9c-1.2 2.6-3.1 4.7-5.7 6.2"/><path d="M12.6 20l3.9-10.6L20.4 20M14.2 16.4h4.6"/></svg>
           </button>
           <div class="lang-pop" role="menu" aria-labelledby="lang-btn" hidden>
             <button type="button" role="menuitemradio" data-lang="zh" aria-checked="false">中文</button>
@@ -2627,11 +2638,11 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
     langMenu.classList.toggle("open", open);
     langBtn.setAttribute("aria-expanded", String(open));
     langPop.hidden = !open;
-    if (open) langPop.querySelector("[data-lang]")?.focus();
   }
   langBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     setLangMenu(langPop.hidden);
+    if (e.detail === 0 && !langPop.hidden) langPop.querySelector("[data-lang]")?.focus();
   });
   for (const b of $$(".lang-pop [data-lang]")) b.addEventListener("click", () => {
     applyLang(b.dataset.lang);
@@ -2643,6 +2654,7 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !langPop.hidden) { setLangMenu(false); langBtn.focus(); }
   });
+  window.addEventListener("scroll", () => { if (!langPop.hidden) setLangMenu(false); }, true);
   // The top bar repeats the active nav item, following language changes.
   function syncTopTitle() {
     const a = document.querySelector(".side nav a[aria-current='page'] .nl");
