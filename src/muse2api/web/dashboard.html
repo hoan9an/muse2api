@@ -627,13 +627,16 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
 .app.collapsed .side .side-meta { justify-content: center; }
 .app.collapsed .side .gh { display: none; }
 
-.topbar .langs { display: inline-flex; width: auto; padding: 2px; gap: 2px;
-  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r); }
-.topbar .langs button { width: 30px; height: 26px; padding: 0; background: none; border: 0;
-  font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: var(--muted);
-  border-radius: var(--r-sm); display: grid; place-items: center; cursor: pointer; }
-.topbar .langs button:hover { color: var(--text); background: var(--panel-2); }
-.topbar .langs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.topbar .langs { position: relative; display: inline-flex; width: auto; padding: 0;
+  background: none; border: 0; }
+.lang-pop { position: absolute; top: calc(100% + 6px); right: 0; width: 176px; padding: 4px;
+  display: flex; flex-direction: column; gap: 2px; background: var(--panel);
+  border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow-lg); z-index: 60; }
+.lang-pop[hidden] { display: none; }
+.lang-pop button { width: 100%; text-align: left; padding: 9px 10px; font-size: 13px;
+  background: none; border: 0; border-radius: var(--r-sm); color: var(--text); cursor: pointer; }
+.lang-pop button:hover { background: var(--panel-2); }
+.lang-pop button[aria-checked="true"] { background: #f3e8dc; color: #7c3f1c; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -738,10 +741,15 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
           <kbd>Ctrl</kbd><kbd>K</kbd>
         </button>
         <button type="button" class="iconbtn" id="theme-toggle" aria-label="Switch to light theme" title="Theme"><svg class="i"><use href="#i-moon"/></svg></button>
-        <div class="langs" role="group" aria-label="Language">
-          <button type="button" data-lang="en" title="English">EN</button>
-          <button type="button" data-lang="vi" title="Tiếng Việt">VI</button>
-          <button type="button" data-lang="zh" title="中文">中文</button>
+        <div class="langs" id="lang-menu">
+          <button type="button" class="iconbtn" id="lang-btn" aria-label="Language" aria-haspopup="menu" aria-expanded="false" title="Language">
+            <svg class="i" viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17c-.67 1.92-1.73 3.75-3.17 5.35A15.6 15.6 0 0 1 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56L2.58 17.6 4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
+          </button>
+          <div class="lang-pop" role="menu" aria-labelledby="lang-btn" hidden>
+            <button type="button" role="menuitemradio" data-lang="zh" aria-checked="false">中文</button>
+            <button type="button" role="menuitemradio" data-lang="en" aria-checked="false">English</button>
+            <button type="button" role="menuitemradio" data-lang="vi" aria-checked="false">Tiếng Việt</button>
+          </div>
         </div>
         <button type="button" class="iconbtn" id="signout" aria-label="Sign out" title="Sign out"><svg class="i"><use href="#i-logout"/></svg></button>
         <span class="pulse" id="top-dot" aria-hidden="true" hidden></span>
@@ -1154,7 +1162,7 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
     lang = I18N[code] ? code : "en";
     store.set("muse2api.lang", lang === "en" ? "" : lang);
     document.documentElement.lang = lang === "zh" ? "zh-CN" : lang;
-    for (const b of $$(".langs button")) b.setAttribute("aria-pressed", String(b.dataset.lang === lang));
+    for (const b of $$(".lang-pop [data-lang]")) b.setAttribute("aria-checked", String(b.dataset.lang === lang));
     translate();
     if (!rerender || $("#app").hidden) return;
     $("#top-title").textContent = tr(PAGES[state.page]);
@@ -2612,7 +2620,29 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
       btn.title = on ? "Expand sidebar" : "Collapse sidebar";
     }
   }
-  for (const b of $$(".langs button")) b.addEventListener("click", () => applyLang(b.dataset.lang));
+  const langMenu = $("#lang-menu");
+  const langBtn = $("#lang-btn");
+  const langPop = $(".lang-pop");
+  function setLangMenu(open) {
+    langMenu.classList.toggle("open", open);
+    langBtn.setAttribute("aria-expanded", String(open));
+    langPop.hidden = !open;
+    if (open) langPop.querySelector("[data-lang]")?.focus();
+  }
+  langBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setLangMenu(langPop.hidden);
+  });
+  for (const b of $$(".lang-pop [data-lang]")) b.addEventListener("click", () => {
+    applyLang(b.dataset.lang);
+    setLangMenu(false);
+  });
+  document.addEventListener("click", (e) => {
+    if (!langPop.hidden && !langMenu.contains(e.target)) setLangMenu(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !langPop.hidden) { setLangMenu(false); langBtn.focus(); }
+  });
   // The top bar repeats the active nav item, following language changes.
   function syncTopTitle() {
     const a = document.querySelector(".side nav a[aria-current='page'] .nl");
