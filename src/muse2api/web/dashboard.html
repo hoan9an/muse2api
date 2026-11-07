@@ -189,7 +189,7 @@ svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor;
 .scrim { display: none; }
 
 main { padding: 24px 32px 56px; max-width: 1320px; width: 100%; margin: 0 auto; }
-.page-head { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.page-head { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; padding-bottom: 0; border-bottom: 0; }
 .page-head h1 { margin: 0; font-size: 23px; letter-spacing: -.02em; font-weight: 600; }
 .page-head .sub { color: var(--muted); font-size: 13px; margin-top: 3px; max-width: 640px; line-height: 1.5; }
 .page-head .grow { flex: 1; min-width: 200px; }
@@ -638,6 +638,9 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
 .lang-pop button:hover { background: var(--panel-2); }.lang-pop button[aria-checked="true"] { background: #f3e8dc; color: #7c3f1c; font-weight: 600; }
 .lang-pop button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 #lang-btn .i { width: 18px; height: 18px; }
+.topbar .langs .iconbtn { width: 32px; height: 32px; padding: 0; display: grid; place-items: center;
+  border: 1px solid var(--border); border-radius: var(--r); background: transparent; color: var(--muted); }
+.topbar .langs .iconbtn:hover { background: var(--panel-2); color: var(--text); }
 @media (max-width: 860px) {
   .topbar { padding: 8px 10px; gap: 8px; }
   .topbar .title { max-width: 38vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
