@@ -42,7 +42,14 @@ class ImageGenerationRequest(_Lenient):
     # and returns an RGBA PNG; "auto"/"opaque" leave the image as generated.
     background: Literal["auto", "opaque", "transparent"] | None = None
     image: str | list[str] | None = Field(
-        default=None, description="Reference image(s) as data URL, http(s) URL or base64 (max 4)")
+        default=None, description="Legacy reference image(s); data URL, http(s) URL or base64")
+    images: str | list[str] | None = None
+    video: str | list[str] | None = None
+    videos: str | list[str] | None = None
+    audio: str | list[str] | None = None
+    audios: str | list[str] | None = None
+    file: str | list[str] | None = None
+    files: str | list[str] | None = None
     # A sync call can outlive a proxy's timeout (Cloudflare cuts at ~100 s with 524), so
     # "async": true returns a task to poll at GET /v1/images/generations/{task_id}.
     async_: bool = Field(default=False, alias="async")
@@ -57,6 +64,19 @@ class VideoCreateRequest(_Lenient):
     seconds: int | None = Field(default=None, ge=1, le=60)
     image: str | None = Field(default=None, description="First frame as data URL or http(s) URL")
     input_reference: str | None = None
+    references: str | list[str] | None = None
+    images: str | list[str] | None = None
+    videos: str | list[str] | None = None
+    audios: str | list[str] | None = None
+    files: str | list[str] | None = None
+
+
+class AccountProxyInput(BaseModel):
+    """Proxy supplied by an admin. Credentials may also be inline in ``server``."""
+
+    server: str = Field(min_length=1, max_length=500)
+    username: str = Field(default="", max_length=255)
+    password: str | None = Field(default=None, max_length=255)
 
 
 class AccountCreate(BaseModel):
@@ -69,6 +89,7 @@ class AccountCreate(BaseModel):
     cookies: dict[str, str] | str | list[dict[str, Any]]
     cookie_expires: dict[str, int] = Field(default_factory=dict)
     enabled: bool = True
+    proxy: AccountProxyInput | None = None
 
 
 class AccountsImportRequest(BaseModel):
@@ -82,6 +103,8 @@ class AccountUpdate(BaseModel):
     enabled: bool | None = None
     cookies: dict[str, str] | None = None
     cookie_expires: dict[str, int] | None = None
+    # An explicit null removes the proxy; omitting the field leaves it alone.
+    proxy: AccountProxyInput | None = None
 
 
 class KeyCreate(BaseModel):

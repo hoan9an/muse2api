@@ -39,6 +39,14 @@ class NotFound(Muse2APIError):
     code = "not_found"
 
 
+class Conflict(Muse2APIError):
+    """The request conflicts with current state (busy account, reused idempotency key)."""
+
+    status_code = 409
+    error_type = "conflict"
+    code = "conflict"
+
+
 class FeatureNotImplemented(Muse2APIError):
     """Reserved endpoint or driver capability that has not been built yet."""
 

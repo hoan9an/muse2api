@@ -14,7 +14,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from ..errors import Muse2APIError
+from ..errors import Conflict, Muse2APIError
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +37,8 @@ class Task(BaseModel):
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
     request: dict[str, Any] = Field(default_factory=dict)
+    idempotency_key: str | None = None
+    request_hash: str | None = None
     result: dict[str, Any] | None = None
     error: dict[str, Any] | None = None
 
@@ -87,8 +89,24 @@ class TaskManager:
     def list(self, limit: int = 100) -> list[Task]:
         return sorted(self._tasks.values(), key=lambda t: t.created_at, reverse=True)[:limit]
 
-    def submit(self, kind: str, request: dict[str, Any], runner: Runner) -> Task:
-        task = Task(kind=kind, request=request)
+    def find_idempotent(self, key: str, request_hash: str) -> Task | None:
+        """Return the task for this key, rejecting a key reused for another request."""
+        for task in self._tasks.values():
+            if task.idempotency_key == key:
+                if task.request_hash != request_hash:
+                    raise Conflict("Idempotency-Key was already used for a different request")
+                return task
+        return None
+
+    def submit(self, kind: str, request: dict[str, Any], runner: Runner, *,
+               idempotency_key: str | None = None,
+               request_hash: str | None = None) -> Task:
+        if idempotency_key:
+            existing = self.find_idempotent(idempotency_key, request_hash or "")
+            if existing is not None:
+                return existing
+        task = Task(kind=kind, request=request, idempotency_key=idempotency_key,
+                    request_hash=request_hash)
         self._tasks[task.id] = task
         self._persist()
         self._running[task.id] = asyncio.create_task(self._run(task, runner))

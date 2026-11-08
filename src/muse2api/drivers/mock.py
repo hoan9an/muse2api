@@ -53,7 +53,10 @@ class MockDriver(MuseDriver):
     async def chat_stream(self, account: Account, req: ChatRequest) -> AsyncIterator[str]:
         reply = f"[mock:{req.model}] You said: {req.prompt[-200:]}"
         if req.images:
-            reply += f" (with {len(req.images)} image(s))"
+            kinds = ", ".join(f"{len([i for i in req.images if i.kind == k])} {k}"
+                             for k in ("image", "video", "audio", "file")
+                             if any(i.kind == k for i in req.images))
+            reply += f" (with {kinds})"
         for i in range(0, len(reply), 8):
             if req.cancel and req.cancel.is_set():
                 return

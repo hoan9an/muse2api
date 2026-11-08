@@ -404,6 +404,10 @@ tr.builtin td:first-child b { font-family: var(--mono); font-size: 12.5px; }
 .quota-bar .qmeta { display: flex; justify-content: space-between; margin-top: 3px; font-size: 11.5px; color: var(--muted); font-family: var(--mono); overflow: hidden; }
 .quota-bar .qmeta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cookie-exp { margin: 0 14px 8px 16px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.proxy-row { margin: 0 14px 8px 16px; display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; color: var(--muted); }
+.proxy-row .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.proxy-row .spacer { flex: 1; }
+.proxy-row .btn { flex: none; }
 .bulk-import { margin-top: 18px; }
 .bulk-import textarea { width: 100%; min-height: 84px; font-size: 12px; resize: vertical; }
 .bulk-import .result { margin-top: 8px; font-size: 12.5px; white-space: pre-wrap; font-family: var(--mono); }
@@ -1627,6 +1631,60 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
     </div>`;
   }
 
+  function proxySection(a) {
+    const p = a.proxy;
+    if (!p) {
+      return `<div class="proxy-row"><span class="badge plain b-mute">Direct</span><span>No proxy</span><span class="spacer"></span><button class="btn sm ghost" type="button" data-act="proxy">Set proxy</button></div>`;
+    }
+    const ps = (a.meta && a.meta.proxy_status) || {};
+    const status = ps.ok ? `ok · exit ${ps.exit_ip || "?"}` : ps.checked_at ? "test failed" : "not tested";
+    const cls = ps.ok ? "b-ok" : ps.checked_at ? "b-warn" : "b-mute";
+    const who = p.username ? ` · ${p.username}` : "";
+    const secret = p.has_password ? " · password saved" : "";
+    return `<div class="proxy-row" title="${esc(ps.error || "Per-account egress proxy")}">
+      <span class="badge plain ${cls}">Proxy</span>
+      <span class="mono">${esc(p.server)}${esc(who)}${esc(secret)}</span>
+      <span class="spacer"></span>
+      <span class="nowrap">${esc(status)}</span>
+      <button class="btn sm ghost" type="button" data-act="proxy-test">Test</button>
+      <button class="btn sm ghost" type="button" data-act="proxy">Edit</button>
+    </div>`;
+  }
+
+  async function proxyForm(a) {
+    const p = a.proxy || {};
+    const saved = !!p.server;
+    const result = await modal({
+      title: saved ? `Proxy for ${a.label || a.id}` : `Set a proxy for ${a.label || a.id}`,
+      body: `<p class="hint">HTTP or SOCKS5 egress proxy for this account only. Chromium reaches it through a loopback relay; if the proxy is down the account does not fall back to a direct connection.</p>
+        <label class="f">Proxy URL<input type="text" id="px-server" value="${esc(p.server || "")}" placeholder="http://127.0.0.1:8080 or socks5://127.0.0.1:1080" autocomplete="off" spellcheck="false"></label>
+        <label class="f">Username <span class="hint">optional</span><input type="text" id="px-user" value="${esc(p.username || "")}" autocomplete="off"></label>
+        <label class="f">Password <span class="hint">${p.has_password ? "a password is saved; leave blank to keep it" : "optional"}</span><input type="password" id="px-pass" value="" autocomplete="new-password"></label>`,
+      actions: [
+        {label: "Cancel", value: null},
+        ...(saved ? [{label: "Remove", value: "remove", cls: "danger"}] : []),
+        {label: "Save", primary: true, cls: "primary",
+         collect: () => ({server: $("#px-server").value.trim(),
+                          username: $("#px-user").value.trim(),
+                          password: $("#px-pass").value}),
+         check: (v) => v.server ? "" : "Enter a proxy URL, or choose Remove."},
+      ],
+    });
+    if (result === null) return;
+    const path = `/admin/accounts/${encodeURIComponent(a.id)}`;
+    if (result === "remove") {
+      await api(path, {method: "PATCH", body: {proxy: null}});
+      toast("Proxy removed; this account now connects directly");
+    } else {
+      await api(path, {method: "PATCH", body: {proxy: {
+        server: result.server, username: result.username || "",
+        password: result.password || null,
+      }}});
+      toast("Proxy saved — use Test to check egress and the Muse session");
+    }
+    await loadAccountsPage();
+  }
+
   function accountCard(a) {
     const t = now(), s = accState(a, t);
     const cooling = s.key === "quota" || s.key === "cooling";
@@ -1651,6 +1709,7 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
         </div>` : ""}
       ${quotaSection(a)}
       ${expirySection(a)}
+      ${proxySection(a)}
       ${a.meta && a.meta.vm_wake_ok != null ? `<div class="cookie-exp" title="VM wake: ${esc(a.meta.vm_state_after || "")}">
         <span class="badge plain ${a.meta.vm_wake_ok ? "b-ok" : "b-err"}">VM ${a.meta.vm_wake_ok ? "running" : "wake failed"}</span>
         ${a.meta.vm_state_after ? `<span>${esc(a.meta.vm_state_after)}</span>` : ""}
@@ -1705,6 +1764,15 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
     const a = state.accounts.find((x) => x.id === id);
     const act = btn.dataset.act;
     if (act === "requests") return go("requests", {account: id});
+    if (act === "proxy") { guarded(() => proxyForm(a)); return; }
+    if (act === "proxy-test") {
+      guarded(async () => {
+        const res = await api(`/admin/accounts/${encodeURIComponent(id)}/proxy/test`, {method: "POST"});
+        toast(res.ok ? `Proxy OK · exit ${res.exit_ip || "?"}` : `Proxy failed: ${res.error || "unknown error"}`);
+        await loadAccountsPage();
+      });
+      return;
+    }
     if (act === "quota") {
       btn.disabled = true;
       const origText = btn.textContent;

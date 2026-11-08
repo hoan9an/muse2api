@@ -221,6 +221,10 @@ class AccountPool:
             await self.persist()
         return removed
 
+    def is_busy(self, account_id: str) -> bool:
+        """True while a request holds a concurrency slot for ``account_id``."""
+        return self._inflight.get(account_id, 0) > 0
+
     def stats(self) -> dict[str, int]:
         now = time.time()
         return {

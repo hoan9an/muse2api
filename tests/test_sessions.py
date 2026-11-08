@@ -3,7 +3,13 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from muse2api.app import create_app
+from muse2api.config import Settings
 from muse2api.drivers.mock import MockDriver
+
+
+def test_dashboard_password_is_not_hard_coded(monkeypatch):
+    monkeypatch.delenv("MUSE2API_DASHBOARD_PASSWORD", raising=False)
+    assert Settings(_env_file=None).dashboard_password == ""
 
 
 def test_a_wrong_key_is_rejected(client):

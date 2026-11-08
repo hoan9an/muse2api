@@ -30,15 +30,31 @@ MODELS: dict[str, ModelSpec] = {
 # Popular client-side model names are routed to the closest muse model so that
 # existing OpenAI tooling works without reconfiguration.
 ALIASES: dict[str, str] = {
+    "muse-spark": "muse-chat",
     "gpt-4o": "muse-chat",
     "gpt-4o-mini": "muse-chat",
     "gpt-4.1": "muse-chat",
+    "gpt-4.1-mini": "muse-chat",
     "gpt-5": "muse-chat",
+    "gpt-5-mini": "muse-chat",
+    "o3": "muse-chat",
+    "o4-mini": "muse-chat",
+    "claude-3-5-sonnet": "muse-chat",
+    "claude-3-7-sonnet": "muse-chat",
     "claude-sonnet-4": "muse-chat",
+    "gemini-2.0-flash": "muse-chat",
+    "gemini-2.5-pro": "muse-chat",
     "deepseek-chat": "muse-chat",
+    "deepseek-reasoner": "muse-chat",
+    "qwen": "muse-chat",
+    "kimi": "muse-chat",
+    "grok": "muse-chat",
     "dall-e-3": "muse-image",
     "gpt-image-1": "muse-image",
+    "gemini-2.5-flash-image": "muse-image",
     "sora": "muse-video",
+    "veo-3": "muse-video",
+    "kling": "muse-video",
 }
 
 DEFAULT_BY_KIND: dict[ModelKind, str] = {

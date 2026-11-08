@@ -15,6 +15,7 @@ import zipfile
 from pathlib import Path
 from typing import Any, Literal
 
+import httpx
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
@@ -22,17 +23,26 @@ from pydantic import BaseModel, Field
 from ... import __version__
 from ...accounts.keepalive import renew_account
 from ...accounts.model import Account, AccountStatus
+from ...accounts.proxy import AccountProxy, proxy_from_input
 from ...auth.keys import ApiKey
 from ...core.context import current_request_id
 from ...core.logbuffer import LOG_BUFFER
 from ...core.models import ALIASES, MODELS, resolve_model
 from ...drivers.base import ChatRequest
-from ...errors import InvalidRequest, Muse2APIError, NotFound
+from ...errors import Conflict, InvalidRequest, Muse2APIError, NotFound
 from ...services.container import Services
 from ...services.request_log import COLUMNS as LOG_COLUMNS
+from ...upstream import muse
 from ...upstream.muse import missing_session_cookies
 from ..deps import get_services, require_admin_key
-from ..schemas import AccountCreate, AccountsImportRequest, AccountUpdate, KeyCreate, KeyUpdate
+from ..schemas import (
+    AccountCreate,
+    AccountProxyInput,
+    AccountsImportRequest,
+    AccountUpdate,
+    KeyCreate,
+    KeyUpdate,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin_key)])
 
@@ -83,8 +93,12 @@ def _build_account(item: AccountCreate) -> Account:
     expires = {k: v for k, v in expires.items() if k in cookies}
     if not cookies:
         raise InvalidRequest("cookies must not be empty")
+    proxy = (proxy_from_input(item.proxy.server, item.proxy.username,
+                              item.proxy.password or "")
+             if item.proxy else None)
     return Account(label=item.label, cookies=cookies,
-                   cookie_expires={**expires, **item.cookie_expires}, enabled=item.enabled)
+                   cookie_expires={**expires, **item.cookie_expires}, enabled=item.enabled,
+                   proxy=proxy)
 
 
 def _get(svc: Services, account_id: str) -> Account:
@@ -142,6 +156,9 @@ async def import_accounts(body: AccountsImportRequest,
 async def update_account(account_id: str, body: AccountUpdate,
                          svc: Services = Depends(get_services)) -> dict:
     acc = _get(svc, account_id)
+    if "proxy" in body.model_fields_set and svc.pool.is_busy(account_id):
+        raise Conflict("account is busy; wait for its current request before changing its proxy")
+    proxy_changed = False
     if body.label is not None:
         acc.label = body.label
     if body.enabled is not None:
@@ -153,8 +170,84 @@ async def update_account(account_id: str, body: AccountUpdate,
         acc.last_error = None
     if body.cookie_expires is not None:
         acc.cookie_expires = body.cookie_expires
+    if "proxy" in body.model_fields_set:
+        if body.proxy is None:
+            proxy_changed = acc.proxy is not None
+            acc.proxy = None
+        else:
+            new_proxy = proxy_from_input(body.proxy.server, body.proxy.username,
+                                          body.proxy.password or "", existing=acc.proxy)
+            proxy_changed = new_proxy != acc.proxy
+            acc.proxy = new_proxy
     await svc.pool.upsert(acc)
+    if proxy_changed and (forget := getattr(svc.driver, "forget_account", None)):
+        await forget(acc.id)
     return {"account": acc.public()}
+
+
+async def _probe_proxy(proxy: AccountProxy, account: Account, svc: Services, *,
+                       check_session: bool = True) -> dict[str, Any]:
+    """Check egress and the Muse session through ``proxy`` without generating anything."""
+    result: dict[str, Any] = {
+        "ok": False, "proxy_reachable": False, "exit_ip": None,
+        "session_ok": None, "workspace_status": None, "checked_at": time.time(),
+    }
+    try:
+        async with httpx.AsyncClient(proxy=proxy.httpx_url(), timeout=15,
+                                     trust_env=False, follow_redirects=False) as client:
+            response = await client.get("https://api.ipify.org?format=json")
+        result["proxy_reachable"] = response.status_code == 200
+        if response.status_code == 200:
+            body = response.json()
+            result["exit_ip"] = str(body.get("ip") or "") or None
+        else:
+            result["error"] = f"exit-IP check returned HTTP {response.status_code}"
+    except (httpx.HTTPError, ValueError, TypeError) as exc:
+        # Never echo the proxy URL or credentials in a client-visible error.
+        result["error"] = f"proxy connection failed ({type(exc).__name__})"
+        return result
+    if not result["proxy_reachable"] or not check_session:
+        return result
+    try:
+        info = await muse.renew_session(
+            account.cookies, site=muse.Endpoints.from_base(svc.settings.site_url),
+            wake_vm=False, timeout=15, proxy_url=proxy.httpx_url(),
+        )
+        result["session_ok"] = info.ok
+        result["workspace_status"] = info.meta.get("vm_state_after") or info.meta.get("vm_state")
+        result["ok"] = info.ok
+        if info.ok:
+            # The session endpoint rotates short-lived cookies. Persisting the
+            # rotation with the saved test avoids invalidating the account's copy.
+            account.cookies.update(info.cookies)
+            account.cookie_expires.update(info.cookie_expires)
+    except Muse2APIError as exc:
+        result["session_ok"] = False
+        result["error"] = exc.message
+    except Exception as exc:  # noqa: BLE001
+        result["session_ok"] = False
+        result["error"] = f"session check failed ({type(exc).__name__})"
+    return result
+
+
+@router.post("/accounts/{account_id}/proxy/test")
+async def test_account_proxy(account_id: str, body: AccountProxyInput | None = None,
+                             svc: Services = Depends(get_services)) -> dict:
+    """Test a saved or draft proxy. A draft test never changes the saved account."""
+    acc = _get(svc, account_id)
+    if svc.pool.is_busy(account_id):
+        raise Conflict("account is busy; wait for its current request to finish")
+    draft = body is not None
+    proxy = (proxy_from_input(body.server, body.username, body.password or "",
+                              existing=acc.proxy) if draft else acc.proxy)
+    if proxy is None:
+        raise InvalidRequest("this account has no proxy to test")
+    account = acc if not draft else acc.model_copy(deep=True)
+    result = await _probe_proxy(proxy, account, svc, check_session=not draft)
+    if not draft:
+        acc.meta["proxy_status"] = result
+        await svc.pool.upsert(acc)
+    return {**result, "tested_saved_proxy": not draft}
 
 
 @router.delete("/accounts/{account_id}")

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 
-from ...core.media import load_image_ref
+from ...core.media import MAX_REFERENCE_ITEMS, MAX_REFERENCE_TOTAL_BYTES, load_media_ref
 from ...core.models import resolve_model
 from ...drivers.base import InputImage, VideoRequest
-from ...errors import NotFound
+from ...errors import InvalidRequest, NotFound
 from ...services.container import Services
 from ...services.tasks import Task
 from ..deps import get_services, public_base, require_api_key
@@ -27,6 +27,24 @@ def _task_view(task: Task) -> dict:
     }
 
 
+def _values(value) -> list[str]:
+    if value is None:
+        return []
+    return [str(item) for item in value] if isinstance(value, list) else [str(value)]
+
+
+async def _load_extra_refs(body: VideoCreateRequest) -> list[InputImage]:
+    refs: list[InputImage] = []
+    for field, kind in (("references", "file"), ("images", "image"),
+                        ("videos", "video"), ("audios", "audio"), ("files", "file")):
+        for ref in _values(getattr(body, field, None)):
+            data, mime = await load_media_ref(ref, kind=kind)
+            if kind == "image" and not mime.startswith("image/"):
+                raise InvalidRequest("image references must have an image/* MIME type")
+            refs.append(InputImage(data=data, mime=mime, kind=kind))
+    return refs
+
+
 @router.post("/v1/videos")
 async def create_video(body: VideoCreateRequest, request: Request,
                        svc: Services = Depends(get_services)) -> dict:
@@ -34,20 +52,34 @@ async def create_video(body: VideoCreateRequest, request: Request,
     spec = resolve_model(body.model, "video")
     request.state.model = body.model or spec.id
     frame_ref = body.image or body.input_reference
-    first_frame = InputImage(*(await load_image_ref(frame_ref))) if frame_ref else None
+    first_frame = None
+    if frame_ref:
+        data, mime = await load_media_ref(frame_ref, kind="image")
+        first_frame = InputImage(data=data, mime=mime, kind="image")
+    extra = await _load_extra_refs(body)
+    references = ([first_frame] if first_frame else []) + extra
+    if len(references) > MAX_REFERENCE_ITEMS:
+        raise InvalidRequest(f"at most {MAX_REFERENCE_ITEMS} reference media items are supported")
+    if sum(len(ref.data) for ref in references) > MAX_REFERENCE_TOTAL_BYTES:
+        raise InvalidRequest(
+            f"reference media total is limited to {MAX_REFERENCE_TOTAL_BYTES // (1024 * 1024)} MiB"
+        )
     base = public_base(request)
 
     async def runner(progress) -> dict:
         req = VideoRequest(prompt=body.prompt, model=spec.id, size=body.size,
                            duration=body.duration or body.seconds, first_frame=first_frame,
-                           timeout=svc.settings.video_timeout, on_progress=progress)
+                           references=references, timeout=svc.settings.video_timeout,
+                           on_progress=progress)
         result = await svc.gateway.generate_video(req)
         name = svc.media.save(result.data, result.mime, prefix="vid")
         return {"url": f"{base}/v1/media/{name}", "mime": result.mime,
                 "width": result.width, "height": result.height}
 
     request_meta = {"model": spec.id, "prompt": body.prompt, "size": body.size,
-                    "duration": body.duration or body.seconds, "has_first_frame": bool(first_frame)}
+                    "duration": body.duration or body.seconds, "has_first_frame": bool(first_frame),
+                    "references": len(references),
+                    "reference_kinds": sorted({ref.kind for ref in references})}
     task = svc.tasks.submit("video", request_meta, runner)
     request.state.task_id = task.id
     return _task_view(task)

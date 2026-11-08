@@ -7,6 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from .proxy import AccountProxy
+
 
 class AccountStatus(str, Enum):
     ACTIVE = "active"
@@ -29,6 +31,9 @@ class Account(BaseModel):
     cookies: dict[str, str] = Field(default_factory=dict)
     cookie_expires: dict[str, int] = Field(
         default_factory=dict, description="cookie name -> unix expiry seconds"
+    )
+    proxy: AccountProxy | None = Field(
+        default=None, description="Optional per-account HTTP/SOCKS5 proxy"
     )
 
     created_at: float = Field(default_factory=_now)
@@ -53,6 +58,7 @@ class Account(BaseModel):
         """Serialisable view with cookie values masked."""
         data = self.model_dump(mode="json")
         data["cookies"] = {k: _mask(v) for k, v in self.cookies.items()}
+        data["proxy"] = self.proxy.public() if self.proxy else None
         return data
 
 

@@ -25,6 +25,8 @@ ProgressCallback = Callable[[int], None]
 class InputImage:
     data: bytes
     mime: str = "image/png"
+    kind: Literal["image", "video", "audio", "file"] = "image"
+    filename: str = ""
 
 
 @dataclass
@@ -60,6 +62,7 @@ class VideoRequest:
     size: str | None = None
     duration: int | None = None
     first_frame: InputImage | None = None
+    references: list[InputImage] = field(default_factory=list)
     timeout: float = 600.0
     on_progress: ProgressCallback | None = None
     cancel: asyncio.Event | None = None

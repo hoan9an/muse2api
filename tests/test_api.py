@@ -146,7 +146,7 @@ def test_image_single_reference_string(client, auth, monkeypatch):
 
 def test_image_too_many_references(client, auth):
     png = "data:image/png;base64," + base64.b64encode(b"x").decode()
-    r = client.post("/v1/images/generations", headers=auth, json={"prompt": "p", "image": [png] * 5})
+    r = client.post("/v1/images/generations", headers=auth, json={"prompt": "p", "image": [png] * 11})
     assert r.status_code == 400
 
 
@@ -305,7 +305,7 @@ def test_image_generation_with_reference(client, auth, monkeypatch):
 
 def test_image_generation_reference_list_limit(client, auth):
     r = client.post("/v1/images/generations", headers=auth,
-                    json={"prompt": "x", "image": [_PNG_DATA_URL] * 5})
+                    json={"prompt": "x", "image": [_PNG_DATA_URL] * 11})
     assert r.status_code == 400
 
 

@@ -135,6 +135,7 @@ async def renew_session(
     sleep: Callable[[float], Awaitable[object]] = asyncio.sleep,
     clock: Callable[[], float] = time.monotonic,
     site: str | Endpoints | None = None,
+    proxy_url: str | None = None,
 ) -> SessionInfo:
     """Hit the session endpoint, which rotates short-lived cookies via Set-Cookie,
     and optionally wake the account's cloud workspace so the first request is fast.
@@ -155,7 +156,12 @@ async def renew_session(
     }
     jar = dict(cookies)
     expires: dict[str, int] = {}
-    async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
+    # A per-account proxy must also carry renewal/wake traffic; without one the
+    # existing environment-proxy behaviour is preserved.
+    client_kwargs: dict[str, object] = {"timeout": timeout, "headers": headers}
+    if proxy_url:
+        client_kwargs.update(proxy=proxy_url, trust_env=False)
+    async with httpx.AsyncClient(**client_kwargs) as client:
         resp = await client.get(endpoints.session_api, headers={"Cookie": cookie_header(jar)})
         if resp.status_code in (401, 403):
             raise UpstreamAuthError(f"session rejected by upstream (HTTP {resp.status_code})")

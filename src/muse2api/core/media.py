@@ -74,26 +74,39 @@ class MediaStore:
         return mimetypes.guess_type(name)[0] or "application/octet-stream"
 
 
-_MAX_FETCH_BYTES = 20 * 1024 * 1024  # 20 MiB cap on server-side image fetches
+MAX_REFERENCE_ITEMS = 10
+MAX_REFERENCE_BYTES = 40 * 1024 * 1024  # per attachment
+MAX_REFERENCE_TOTAL_BYTES = 100 * 1024 * 1024  # per request
+_MAX_FETCH_BYTES = MAX_REFERENCE_BYTES
 _MAX_REDIRECTS = 5
+_DEFAULT_MIME = {
+    "image": "image/png",
+    "video": "video/mp4",
+    "audio": "audio/mpeg",
+    "file": "application/octet-stream",
+}
 
 
-def _assert_public_url(url: str) -> str:
+def _label(kind: str) -> str:
+    return "image_url" if kind == "image" else f"{kind}_url"
+
+
+def _assert_public_url(url: str, *, kind: str = "image") -> str:
     """Reject non-http(s) URLs and hosts resolving to non-public IPs (SSRF guard)."""
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
-        raise InvalidRequest("image_url must be a public http(s) URL")
+        raise InvalidRequest(f"{_label(kind)} must be a public http(s) URL")
     return url
 
 
-async def _assert_public_host(hostname: str) -> None:
+async def _assert_public_host(hostname: str, *, kind: str = "image") -> None:
     """Reject hostnames resolving to non-public IPs (SSRF guard)."""
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(
             hostname, None, type=socket.SOCK_STREAM
         )
     except socket.gaierror as exc:
-        raise InvalidRequest("image_url host does not resolve") from exc
+        raise InvalidRequest(f"{_label(kind)} host does not resolve") from exc
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
         if ip.version == 6 and ip.ipv4_mapped is not None:
@@ -106,47 +119,64 @@ async def _assert_public_host(hostname: str) -> None:
             or ip.is_reserved
             or ip.is_unspecified
         ):
-            raise InvalidRequest("image_url must resolve to a public IP address")
+            raise InvalidRequest(f"{_label(kind)} must resolve to a public IP address")
 
 
-async def _fetch_public_image(url: str, *, timeout: float) -> tuple[bytes, str]:
-    """Fetch an image URL with manual redirect validation and a size cap."""
-    url = _assert_public_url(url)
-    await _assert_public_host(urllib.parse.urlparse(url).hostname or "")
+async def _fetch_public_media(url: str, *, timeout: float, kind: str = "image") -> tuple[bytes, str]:
+    """Fetch a reference URL with manual redirect validation and a size cap."""
+    label = _label(kind)
+    url = _assert_public_url(url, kind=kind)
+    await _assert_public_host(urllib.parse.urlparse(url).hostname or "", kind=kind)
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
         for _ in range(_MAX_REDIRECTS + 1):
             async with client.stream("GET", url) as resp:
                 if resp.status_code in (301, 302, 303, 307, 308):
                     location = resp.headers.get("location")
                     if not location:
-                        raise InvalidRequest("image_url redirect missing location")
-                    url = _assert_public_url(urllib.parse.urljoin(url, location))
-                    await _assert_public_host(urllib.parse.urlparse(url).hostname or "")
+                        raise InvalidRequest(f"{label} redirect missing location")
+                    url = _assert_public_url(urllib.parse.urljoin(url, location), kind=kind)
+                    await _assert_public_host(urllib.parse.urlparse(url).hostname or "", kind=kind)
                     continue
                 resp.raise_for_status()
-                mime = resp.headers.get("content-type", "image/png").split(";")[0]
+                mime = resp.headers.get("content-type", _DEFAULT_MIME[kind]).split(";")[0]
                 body = bytearray()
                 async for chunk in resp.aiter_bytes(65536):
                     body.extend(chunk)
                     if len(body) > _MAX_FETCH_BYTES:
-                        raise InvalidRequest("image_url response exceeds 20 MiB")
+                        raise InvalidRequest(f"{label} response exceeds 40 MiB")
                 return bytes(body), mime
-        raise InvalidRequest("image_url exceeded redirect limit")
+        raise InvalidRequest(f"{label} exceeded redirect limit")
+
+
+async def load_media_ref(ref: str, *, kind: str = "image",
+                         timeout: float = 20.0) -> tuple[bytes, str]:
+    """Decode a data URL or download an http(s) URL. Returns ``(bytes, mime)``.
+
+    ``kind`` is one of image/video/audio/file and only selects the default MIME
+    for raw base64; routes enforce the MIME family where it matters.
+    """
+    ref = ref.strip()
+    if not ref:
+        raise InvalidRequest("reference media must not be empty")
+    if ref.startswith("data:"):
+        header, _, payload = ref.partition(",")
+        mime = header[5:].split(";")[0] or _DEFAULT_MIME[kind]
+        try:
+            data = base64.b64decode(payload)
+        except ValueError as exc:
+            raise InvalidRequest("invalid base64 media data") from exc
+    elif ref.startswith(("http://", "https://")):
+        data, mime = await _fetch_public_media(ref, timeout=timeout, kind=kind)
+    else:
+        try:
+            data = base64.b64decode(ref, validate=True)
+        except ValueError as exc:
+            raise InvalidRequest("media must be a data URL, http(s) URL or base64 string") from exc
+        mime = _DEFAULT_MIME[kind]
+    if len(data) > MAX_REFERENCE_BYTES:
+        raise InvalidRequest(f"each reference media item is limited to {MAX_REFERENCE_BYTES // (1024 * 1024)} MiB")
+    return data, mime
 
 
 async def load_image_ref(ref: str, *, timeout: float = 20.0) -> tuple[bytes, str]:
-    """Decode a data URL or download an http(s) URL. Returns ``(bytes, mime)``."""
-    ref = ref.strip()
-    if ref.startswith("data:"):
-        header, _, payload = ref.partition(",")
-        mime = header[5:].split(";")[0] or "image/png"
-        try:
-            return base64.b64decode(payload), mime
-        except ValueError as exc:
-            raise InvalidRequest("invalid base64 image data") from exc
-    if ref.startswith(("http://", "https://")):
-        return await _fetch_public_image(ref, timeout=timeout)
-    try:
-        return base64.b64decode(ref, validate=True), "image/png"
-    except ValueError as exc:
-        raise InvalidRequest("image must be a data URL, http(s) URL or base64 string") from exc
+    return await load_media_ref(ref, kind="image", timeout=timeout)

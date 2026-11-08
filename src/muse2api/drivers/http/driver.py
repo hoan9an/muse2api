@@ -43,5 +43,6 @@ class HttpDriver(MuseDriver):
 
     async def renew_session(self, account: Account) -> SessionInfo:
         return await muse.renew_session(
-            account.cookies, site=muse.Endpoints.from_base(self.settings.site_url)
+            account.cookies, site=muse.Endpoints.from_base(self.settings.site_url),
+            proxy_url=account.proxy.httpx_url() if account.proxy else None,
         )

@@ -54,6 +54,9 @@ The project focuses on **clean engineering and easy collaboration**:
 |---|---|---|
 | OpenAI protocol layer (chat streaming/non-streaming, images, videos, models) | ✅ Implemented | Multi-turn chat, system prompts, image input, model aliases |
 | Account pool (scheduling / cooldown / invalidation / failover) | ✅ Implemented | `lru`, `round_robin` and `affinity` strategies |
+| Per-account proxy | ✅ Implemented | HTTP / SOCKS5 (with optional auth), including a loopback relay for Chromium contexts; no direct fallback |
+| Reference media | ✅ Implemented | Up to 10 images, videos, audio or files per request (40 MiB each, 100 MiB total) |
+| Image task idempotency | ✅ Implemented | `Idempotency-Key` on async image creation; a reused key with another body is rejected with 409 |
 | Background tasks (video) | ✅ Implemented | Create a task, then poll for the result; unfinished tasks are marked interrupted after a restart |
 | Admin API (account CRUD, renewal, reset, status) | ✅ Implemented | Accepts cookie dicts, raw `Cookie` header strings and EditThisCookie JSON, plus bulk import via `/admin/accounts/import`; per-account quota snapshot at `/admin/accounts/{id}/quota` |
 | Mock driver | ✅ Implemented | Offline fake data |
@@ -229,7 +232,7 @@ curl http://localhost:18610/v1/images/generations \
 
 **Image from reference images**
 
-`"image"` takes one reference image or a list of up to 4 (data URL, http(s) URL or bare base64). They are attached to the muse.ai message like a chat upload, and the prompt says how to use them, e.g. put a product on a model, or "the same fox, now wearing a red scarf" to keep the subject and scene. `/v1/images/edits` does the same with OpenAI-style multipart uploads, so `client.images.edit()` works; `mask` (inpainting a region) is not supported.
+`"image"` takes one reference image or a list; `"images"`, `"video"`, `"videos"`, `"audio"`, `"audios"`, `"file"` and `"files"` add the other media kinds (data URL, http(s) URL or bare base64). A request accepts up to 10 references, 40 MiB each and 100 MiB in total. They are attached to the muse.ai message like a chat upload, and the prompt says how to use them, e.g. put a product on a model, or "the same fox, now wearing a red scarf" to keep the subject and scene. `/v1/images/edits` does the same with OpenAI-style multipart uploads (`image`/`image[]`, `video`, `audio`, `file`), so `client.images.edit()` works; `mask` (inpainting a region) is not supported.
 
 ```bash
 curl http://localhost:18610/v1/images/generations \
@@ -239,6 +242,14 @@ curl http://localhost:18610/v1/images/generations \
 curl http://localhost:18610/v1/images/edits \
   -H "Authorization: Bearer $KEY" \
   -F "image[]=@fox.png" -F "prompt=The same fox, now wearing a red scarf"
+```
+
+A video can use a first frame plus additional reference media:
+
+```bash
+curl http://localhost:18610/v1/videos \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"prompt":"animate this room","duration":5,"image":"data:image/png;base64,...","images":["https://example.com/lamp.png"]}'
 ```
 
 **Image as an async task**
@@ -252,6 +263,15 @@ curl http://localhost:18610/v1/images/generations \
 curl http://localhost:18610/v1/images/generations/task_xxx -H "Authorization: Bearer $KEY"
 ```
 
+Async image creation accepts an `Idempotency-Key` header. Repeating the same request returns the original task; reusing the key with different input returns HTTP 409.
+
+```bash
+curl http://localhost:18610/v1/images/generations \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -H "Idempotency-Key: poster-2026-11-08" \
+  -d '{"prompt":"A red fox sitting","async":true}'
+```
+
 **Text to video (async task)**
 
 ```bash
@@ -263,6 +283,16 @@ curl http://localhost:18610/v1/videos \
 # Poll the task; on success, result.url points to the video
 curl http://localhost:18610/v1/videos/task_xxx -H "Authorization: Bearer $KEY"
 ```
+
+**Per-account proxy**
+
+Each account can use its own HTTP or SOCKS5 egress proxy. Add it when creating the account or update it from the dashboard's account card:
+
+```json
+{"label":"acc1","cookies":{"hatch_sess":"..."},"proxy":{"server":"socks5://127.0.0.1:1080","username":"user","password":"secret"}}
+```
+
+The browser driver points that account's Chromium context at a loopback relay, which authenticates HTTP CONNECT or SOCKS5 upstream; it never falls back to a direct connection. Session renewal uses the same proxy. `GET /admin/accounts` masks the password, and `POST /admin/accounts/{id}/proxy/test` checks egress plus the Muse session on an idle account.
 
 **Import an account**
 
@@ -281,12 +311,13 @@ curl http://localhost:18610/admin/accounts \
 | POST | `/v1/chat/completions` | Chat, streaming and non-streaming |
 | POST | `/v1/images/generations` · GET `/v1/images/generations/{id}` | Text to image (optional `image` references), returns `url` or `b64_json`; `"async": true` returns a task to poll |
 | POST | `/v1/images/edits` | Multipart `image`/`image[]` files + `prompt`, OpenAI-compatible |
-| POST | `/v1/videos` · GET `/v1/videos/{id}` | Create a video task · query a task |
+| POST | `/v1/videos` · GET `/v1/videos/{id}` | Create a video task (first frame + reference media) · query a task |
 | GET | `/v1/media/{name}` | Download generated media |
 | GET/POST/PATCH/DELETE | `/admin/accounts[/{id}]` | Account CRUD |
 | POST | `/admin/accounts/import` | Bulk account import with per-entry error reporting |
 | POST | `/admin/accounts/{id}/renew` · `/reset` | Renew session · reset account state |
 | GET | `/admin/accounts/{id}/quota[?refresh=1]` | Quota snapshot (cached 30 min; `refresh=1` reads it again; 409 `account_busy` when every tab is busy) |
+| POST | `/admin/accounts/{id}/proxy/test` | Test the saved proxy or a draft body; saves `meta.proxy_status` only for a saved test |
 | GET | `/admin/extension.zip` | The cookie-import Chrome extension |
 | GET | `/admin/status` · `/admin/tasks` | Service status · task list |
 | GET/POST/PATCH/DELETE | `/admin/keys[/{id}]` | Client API keys (create returns the key once; PATCH renames / revokes) |
@@ -336,6 +367,7 @@ All settings come from environment variables (prefix `MUSE2API_`) or a `.env` fi
 | `MUSE2API_HOST` · `MUSE2API_PORT` | `127.0.0.1` · `18610` | Listen address and port |
 | `MUSE2API_API_KEY` | auto-generated | Key for `/v1/*` endpoints |
 | `MUSE2API_ADMIN_KEY` | same as API key | Key for `/admin/*` endpoints |
+| `MUSE2API_DASHBOARD_PASSWORD` | empty | Optional dashboard password. Empty disables password sign-in; the admin key still works |
 | `MUSE2API_REQUEST_LOG_RETENTION_DAYS` | `14` | Days of request history kept in `data/requests.db` |
 | `MUSE2API_MEDIA_RETENTION_DAYS` | `14` | Days generated media files are kept in `data/media`; `0` disables automatic cleanup |
 | `MUSE2API_STREAM_HEARTBEAT_INTERVAL` | `0` | SSE `: keepalive` comment interval (seconds) while waiting for the first stream token; `0` disables |

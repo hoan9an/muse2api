@@ -51,6 +51,7 @@ from . import dom
 from .cdp import CDPError, CDPSession
 from .chromium import ChromiumProcess, find_chromium
 from .evidence import Evidence
+from .proxy_relay import ProxyRelay
 
 log = logging.getLogger(__name__)
 
@@ -141,6 +142,8 @@ class BrowserDriver(MuseDriver):
         self._quota_cache: dict[str, dict[str, Any]] = {}
         self._quota_locks: dict[str, asyncio.Lock] = {}
         self._warming: dict[str, asyncio.Task] = {}
+        # One loopback relay per proxied account/context; closed with the context.
+        self._proxy_relays: dict[str, ProxyRelay] = {}
 
     # ------------------------------------------------------------ lifecycle
     async def startup(self) -> None:
@@ -159,10 +162,31 @@ class BrowserDriver(MuseDriver):
         for tabs in list(self._tabs.values()):
             for tab in list(tabs):
                 await self._close_tab(tab)
+        for relay in list(self._proxy_relays.values()):
+            relay.close()
+        self._proxy_relays.clear()
         if self._browser:
             await self._browser.close()
         if self._chromium:
             await self._chromium.stop()
+
+    async def forget_account(self, account_id: str) -> None:
+        """Drop every tab/context for an account, e.g. after its proxy changed."""
+        async with self._tab_cond:
+            tabs = list(self._tabs.get(account_id, []))
+        for tab in tabs:
+            await self._close_tab(tab)
+        async with self._ctx_lock:
+            context_id = self._contexts.pop(account_id, None)
+            relay = self._proxy_relays.pop(account_id, None)
+        if context_id and self._browser and not self._browser.closed:
+            with contextlib.suppress(Exception):
+                await self._browser.send(
+                    "Target.disposeBrowserContext", {"browserContextId": context_id}
+                )
+        if relay:
+            relay.close()
+        self._quota_cache.pop(account_id, None)
 
     async def health(self) -> dict[str, Any]:
         ok = self._browser is not None and not self._browser.closed
@@ -247,7 +271,21 @@ class BrowserDriver(MuseDriver):
             if ctx := self._contexts.get(account.id):
                 return ctx
             assert self._browser
-            res = await self._browser.send("Target.createBrowserContext", {"disposeOnDetach": False})
+            params: dict[str, Any] = {"disposeOnDetach": False}
+            relay: ProxyRelay | None = None
+            if account.proxy:
+                relay = ProxyRelay(account.proxy)
+                self._proxy_relays[account.id] = relay
+                params["proxyServer"] = relay.url
+                # Local loopback is the relay itself, not a destination to bypass.
+                params["proxyBypassList"] = "<-loopback>"
+            try:
+                res = await self._browser.send("Target.createBrowserContext", params)
+            except Exception:
+                if relay:
+                    self._proxy_relays.pop(account.id, None)
+                    relay.close()
+                raise
             self._contexts[account.id] = res["browserContextId"]
             return res["browserContextId"]
 
@@ -289,6 +327,7 @@ class BrowserDriver(MuseDriver):
                 tabs.remove(tab)
             last = not tabs and not self._opening.get(tab.account_id)
             context_id = self._contexts.pop(tab.account_id, None) if last else None
+            relay = self._proxy_relays.pop(tab.account_id, None) if last else None
             self._tab_cond.notify_all()
         await tab.session.close()
         if self._browser and not self._browser.closed:
@@ -299,6 +338,8 @@ class BrowserDriver(MuseDriver):
                     await self._browser.send(
                         "Target.disposeBrowserContext", {"browserContextId": context_id}
                     )
+        if relay:
+            relay.close()
 
     @staticmethod
     async def _set_cookies(session: CDPSession, account: Account, *,
@@ -428,12 +469,13 @@ class BrowserDriver(MuseDriver):
     # ------------------------------------------------------------ input
     async def _attach(self, tab: _Tab, images: list[InputImage]) -> None:
         for idx, img in enumerate(images):
-            ext = img.mime.split("/")[-1].replace("jpeg", "jpg")
+            ext = img.mime.split("/")[-1].split(";")[0].replace("jpeg", "jpg") or "bin"
+            filename = img.filename or f"input_{idx}.{ext}"
             res = await tab.session.evaluate(
-                dom.attach_file(base64.b64encode(img.data).decode(), img.mime, f"input_{idx}.{ext}")
+                dom.attach_file(base64.b64encode(img.data).decode(), img.mime, filename)
             )
             if not (res or {}).get("ok"):
-                raise UpstreamError(f"failed to attach image: {(res or {}).get('err')}")
+                raise UpstreamError(f"failed to attach {img.kind}: {(res or {}).get('err')}")
         if images:
             await asyncio.sleep(1.0)
 
@@ -893,13 +935,16 @@ class BrowserDriver(MuseDriver):
 
     async def generate_video(self, account: Account, req: VideoRequest) -> MediaResult:
         prompt = self._media_prompt(req.prompt, "video", req.size, req.duration)
-        images = [req.first_frame] if req.first_frame else []
+        images = req.references or ([req.first_frame] if req.first_frame else [])
         return await self._generate(account, prompt, images, "video", req.timeout,
                                     req.on_progress, req.cancel)
 
     # ------------------------------------------------------------ session
     async def renew_session(self, account: Account) -> SessionInfo:
-        info = await muse.renew_session(account.cookies, site=self.endpoints)
+        info = await muse.renew_session(
+            account.cookies, site=self.endpoints,
+            proxy_url=account.proxy.httpx_url() if account.proxy else None,
+        )
         # Cookies live in the account's browser context, so writing the rotated ones
         # through any open tab updates every tab and keeps hot and warm pages alive.
         async with self._tab_cond:
