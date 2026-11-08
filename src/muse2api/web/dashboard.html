@@ -11,6 +11,15 @@
   try { const t = localStorage.getItem("muse2api.theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
 </script>
 <style>
+@font-face { font-family: "Lexend"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url("/dashboard/fonts/lexend-vietnamese.woff2") format("woff2");
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: "Lexend"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url("/dashboard/fonts/lexend-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Lexend"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url("/dashboard/fonts/lexend-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 :root {
   color-scheme: light;
   /* OmniRoute-derived warm ivory */
@@ -27,7 +36,7 @@
   --shadow: 0 1px 2px rgba(32, 33, 28, .05);
   --shadow-lg: 0 12px 28px -4px rgba(0, 0, 0, .3);
   --sans: "Lexend", "Switzer", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", sans-serif;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --mono: "Lexend", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -656,24 +665,58 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-overview" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="9" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="5" rx="1.5"/><rect x="13.5" y="11" width="7.5" height="10" rx="1.5"/><rect x="3" y="15" width="7.5" height="6" rx="1.5"/></symbol>
-  <symbol id="i-accounts" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.7.7 2.7 2.4 3 5.2"/></symbol>
-  <symbol id="i-keys" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3M16.5 6.5l2.5 2.5M14 9l2 2"/></symbol>
-  <symbol id="i-requests" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/><circle cx="19" cy="12" r="1.2"/></symbol>
-  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10"/></symbol>
-  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
-  <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v16a8 8 0 0 0 0-16Z" fill="currentColor"/></symbol>
-  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></symbol>
-  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4.5h-4.5"/></symbol>
-  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
-  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
-  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></symbol>
-  <symbol id="i-command" viewBox="0 0 24 24"><path d="M9 9h6v6H9z"/><path d="M15 9h3a3 3 0 1 0-3-3v3M9 9H6a3 3 0 1 1 3-3v3M9 15H6a3 3 0 1 0 3 3v-3M15 15h3a3 3 0 1 1-3 3v-3"/></symbol>
-  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3M16.5 6.5l2.5 2.5M14 9l2 2"/></symbol>
-  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c.8-3.5 3.8-5.5 7.5-5.5s6.7 2 7.5 5.5"/></symbol>
-  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H13L13 2z"/></symbol>
+  <symbol id="i-overview" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1" />
+  <rect width="7" height="5" x="14" y="3" rx="1" />
+  <rect width="7" height="9" x="14" y="12" rx="1" />
+  <rect width="7" height="5" x="3" y="16" rx="1" /></symbol>
+  <symbol id="i-accounts" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+  <circle cx="9" cy="7" r="4" />
+  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+  <path d="M16 3.13a4 4 0 0 1 0 7.75" /></symbol>
+  <symbol id="i-keys" viewBox="0 0 24 24"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" />
+  <circle cx="16.5" cy="7.5" r=".5" fill="currentColor" /></symbol>
+  <symbol id="i-requests" viewBox="0 0 24 24"><path d="M3 12h.01" />
+  <path d="M3 18h.01" />
+  <path d="M3 6h.01" />
+  <path d="M8 12h13" />
+  <path d="M8 18h13" />
+  <path d="M8 6h13" /></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+  <polyline points="16 17 21 12 16 7" />
+  <line x1="21" x2="9" y1="12" y2="12" /></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><line x1="4" x2="20" y1="12" y2="12" />
+  <line x1="4" x2="20" y1="6" y2="6" />
+  <line x1="4" x2="20" y1="18" y2="18" /></symbol>
+  <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" />
+  <path d="M12 18a6 6 0 0 0 0-12v12z" /></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" />
+  <path d="M12 2v2" />
+  <path d="M12 20v2" />
+  <path d="m4.93 4.93 1.41 1.41" />
+  <path d="m17.66 17.66 1.41 1.41" />
+  <path d="M2 12h2" />
+  <path d="M20 12h2" />
+  <path d="m6.34 17.66-1.41 1.41" />
+  <path d="m19.07 4.93-1.41 1.41" /></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14" />
+  <path d="M12 5v14" /></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+  <path d="M21 3v5h-5" />
+  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+  <path d="M8 16H3v5" /></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18" />
+  <path d="m6 6 12 12" /></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" />
+  <path d="m21 21-4.3-4.3" /></symbol>
+  <symbol id="i-command" viewBox="0 0 24 24"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" /></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" />
+  <circle cx="16.5" cy="7.5" r=".5" fill="currentColor" /></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5" />
+  <path d="M20 21a8 8 0 0 0-16 0" /></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></symbol>
   <defs>
     <linearGradient id="brand-grad" x1="133.245" y1="109.046" x2="24.9203" y2="-12.5565" gradientUnits="userSpaceOnUse">
       <stop offset=".255" stop-color="#0082FB"/><stop offset=".697" stop-color="#0064E0"/><stop offset="1" stop-color="#0040DC"/>
@@ -682,11 +725,25 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
   <symbol id="i-brand" viewBox="0 0 100 100">
     <path d="M24.6257 16.1214C28.2365 16.1214 30.8187 18.9408 30.8187 23.3643C30.8185 27.7868 30.1055 31.7765 28.9225 40.2466C28.0743 46.1813 26.62 55.2418 26.0132 59.0088C27.1782 56.7815 29.9074 51.5757 30.3914 50.5982C36.1081 39.061 42.0657 28.7544 43.7826 26.0254C46.0594 22.382 48.062 20.9229 51.1597 20.9229C52.7685 20.923 54.6826 21.7357 55.6315 22.819C56.9178 24.2895 57.1859 26.6602 57.1411 29.244C57.0738 33.2073 56.5599 39.5264 55.8553 46.5698C55.5416 49.7057 54.9365 56.1066 54.5288 60.4004C58.1883 53.8532 64.9609 41.8109 67.6921 37.6058C70.0727 33.9402 72.466 31.5797 75.6836 31.5796C78.4595 31.5796 81.8809 33.5416 81.6772 38.7573C81.3774 46.4556 80.2673 63.2232 79.7607 70.7479C83.1662 65.7913 87.6377 58.4543 89.3148 55.6966C91.0104 52.908 92.75 50.6542 95.3898 50.5778C98.0987 50.4995 99.913 52.341 99.9959 55.1839C100.078 58.0277 98.3835 61.2256 96.1344 64.856C93.6937 68.7957 90.9621 73.0123 87.6383 76.9491C84.3148 80.8856 81.2604 83.8782 76.5991 83.8786C72.4243 83.8786 69.4869 81.1043 69.283 76.0254C69.1768 73.364 69.6804 67.6405 70.0602 63.1673C70.5 57.9875 71.0315 52.9861 71.403 49.6786C67.7337 56.3979 60.0101 70.4676 56.5348 75.9603C53.1343 81.3339 51.4774 83.2269 47.8882 83.2275C44.2977 83.2275 42.7226 80.6416 42.6717 76.7497C42.6142 72.5285 45.7852 47.1821 46.8587 38.737C45.1183 42.4616 40.839 51.6056 38.1551 57.0435C35.5587 62.3055 31.204 71.3978 28.0436 76.6357C25.7668 80.4094 23.2092 83.2273 19.4173 83.2275C15.6252 83.2275 13.4847 80.6784 13.4847 76.5788C13.4847 72.4794 14.6716 65.6492 15.9465 57.1777C16.5839 53.0781 17.3108 48.6133 18.1315 43.8761C18.7324 40.448 19.7764 34.4169 20.4183 30.7129C17.502 35.2539 12.2536 43.4278 10.6567 45.8903C8.88113 48.6291 7.28747 50.626 4.64681 50.6266C1.7329 50.6266 0.000532901 48.3522 0 45.7113C0 43.0703 1.34323 41.0344 3.52376 37.4512C6.32403 32.8465 11.3578 26.57 14.1154 23.2747C17.3656 19.3912 20.6139 16.1219 24.6257 16.1214Z" fill="url(#brand-grad)"/>
   </symbol>
-  <symbol id="i-logs" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M7 9.5l2.5 2.5L7 14.5M12.5 15H17"/></symbol>
-  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h8.5M17.5 7H20M4 17h3.5M12.5 17H20"/><circle cx="15" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></symbol>
-  <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></symbol>
-  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5-11-6.5z"/></symbol>
-  <symbol id="i-rail" viewBox="0 0 24 24"><path d="M10 6l-6 6 6 6M17 6l-6 6 6 6"/></symbol>
+  <symbol id="i-logs" viewBox="0 0 24 24"><path d="M15 12h-5" />
+  <path d="M15 8h-5" />
+  <path d="M19 17V5a2 2 0 0 0-2-2H4" />
+  <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" /></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4" />
+  <line x1="10" x2="3" y1="4" y2="4" />
+  <line x1="21" x2="12" y1="12" y2="12" />
+  <line x1="8" x2="3" y1="12" y2="12" />
+  <line x1="21" x2="16" y1="20" y2="20" />
+  <line x1="12" x2="3" y1="20" y2="20" />
+  <line x1="14" x2="14" y1="2" y2="6" />
+  <line x1="8" x2="8" y1="10" y2="14" />
+  <line x1="16" x2="16" y1="18" y2="22" /></symbol>
+  <symbol id="i-cube" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+  <path d="m3.3 7 8.7 5 8.7-5" />
+  <path d="M12 22V12" /></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3" /></symbol>
+  <symbol id="i-rail" viewBox="0 0 24 24"><path d="m11 17-5-5 5-5" />
+  <path d="m18 17-5-5 5-5" /></symbol>
 </svg>
 
 <!-- login screen -->
@@ -704,7 +761,8 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
         <label class="f" for="login-key">Admin key</label>
         <div class="pw">
           <input type="password" id="login-key" autocomplete="current-password" required placeholder="m2a-…">
-          <button type="button" id="login-eye" aria-label="Show key" aria-pressed="false" title="Show key"><svg class="i" viewBox="0 0 24 24"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg></button>
+          <button type="button" id="login-eye" aria-label="Show key" aria-pressed="false" title="Show key"><svg class="i" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+  <circle cx="12" cy="12" r="3" /></svg></button>
         </div>
         <div class="errbox" id="login-err" hidden></div>
         <button class="btn primary big" type="submit" id="login-btn">Sign in</button>
@@ -809,7 +867,9 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
           <div class="grow"><h1>Accounts</h1><div class="sub">muse.ai accounts in the pool. An account that runs out of quota comes back when its cooldown ends.</div></div>
           <div class="tools">
             <button class="btn" id="acc-refresh" type="button"><svg class="i"><use href="#i-refresh"/></svg>Refresh</button>
-            <button class="btn" id="acc-ext-dl" type="button" title="Download the Chrome extension to import muse.ai cookies"><svg class="i" viewBox="0 0 24 24"><path d="M12 15l-4-4h3V4h2v7h3l-4 4z"/><path d="M5 18h14v2H5z"/></svg>Download extension</button>
+            <button class="btn" id="acc-ext-dl" type="button" title="Download the Chrome extension to import muse.ai cookies"><svg class="i" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  <polyline points="7 10 12 15 17 10" />
+  <line x1="12" x2="12" y1="15" y2="3" /></svg>Download extension</button>
             <button class="btn" id="acc-bulk-toggle" type="button" title="Import many cookies at once">Bulk import</button>
           </div>
         </div>
