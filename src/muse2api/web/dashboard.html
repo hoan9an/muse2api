@@ -755,18 +755,18 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
     </div>
     <div class="login-card">
       <h1>Sign in</h1>
-      <p class="login-sub">Enter the admin key to open this gateway.</p>
+      <p class="login-sub">Enter the dashboard password to open this gateway.</p>
       <form id="login-form" autocomplete="on">
         <input type="text" name="username" value="admin" autocomplete="username" hidden>
-        <label class="f" for="login-key">Admin key</label>
+        <label class="f" for="login-key">Password</label>
         <div class="pw">
-          <input type="password" id="login-key" autocomplete="current-password" required placeholder="m2a-…">
-          <button type="button" id="login-eye" aria-label="Show key" aria-pressed="false" title="Show key"><svg class="i" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+          <input type="password" id="login-key" autocomplete="current-password" required placeholder="••••••••">
+          <button type="button" id="login-eye" aria-label="Show password" aria-pressed="false" title="Show password"><svg class="i" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
   <circle cx="12" cy="12" r="3" /></svg></button>
         </div>
         <div class="errbox" id="login-err" hidden></div>
         <button class="btn primary big" type="submit" id="login-btn">Sign in</button>
-        <p class="login-note">Exchanged for an HttpOnly session cookie. The key itself is never stored in this browser.</p>
+        <p class="login-note">Exchanged for an HttpOnly session cookie. The secret is never stored in this browser.</p>
       </form>
     </div>
     <p class="login-foot">Muse2API · muse.ai gateway · If <span class="mono">MUSE2API_ADMIN_KEY</span> is unset, the key lives in <span class="mono">data/api_key</span>.</p>
@@ -1107,6 +1107,7 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
       "Model": "Mô hình", "Account": "Tài khoản", "Latency": "Độ trễ", "Client": "Máy khách",
       "Kind": "Loại", "Use": "Cách dùng", "Errors": "Lỗi", "Aliases": "Bí danh",
       "Built-in identities": "Danh tính có sẵn", "Admin key": "Khoá quản trị",
+      "Password": "Mật khẩu", "Password is incorrect.": "Mật khẩu không đúng.",
       "Checking…": "Đang kiểm tra…", "No accounts": "Chưa có tài khoản",
       "active": "đang hoạt động", "revoked": "đã thu hồi", "expired": "đã hết hạn",
       "built-in": "có sẵn", "read only": "chỉ đọc", "never": "không",
@@ -1123,9 +1124,9 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
       "within 7 days — rotate them": "trong 7 ngày — nên xoay khoá",
       "Monitor": "Giám sát", "API gateway": "Cổng API", "Quick nav": "Điều hướng nhanh",
       "Last hour": "1 giờ qua", "Today": "Hôm nay", "This week": "Tuần này",
-      "Enter the admin key to open this gateway.": "Nhập khoá quản trị để mở cổng API này.",
-      "Exchanged for an HttpOnly session cookie. The key itself is never stored in this browser.":
-        "Được đổi thành cookie phiên HttpOnly. Bản thân khoá không bao giờ lưu trong trình duyệt này.",
+      "Enter the dashboard password to open this gateway.": "Nhập mật khẩu dashboard để mở cổng API này.",
+      "Exchanged for an HttpOnly session cookie. The secret is never stored in this browser.":
+        "Được đổi thành cookie phiên HttpOnly. Bí mật không bao giờ được lưu trong trình duyệt này.",
       "Running now": "Đang chạy", "Requests over time": "Yêu cầu theo thời gian",
       "Top API keys": "Khoá API nổi bật", "By model": "Theo model", "By status code": "Theo mã trạng thái",
       "Success Rate": "Tỉ lệ thành công", "no traffic yet": "chưa có lưu lượng",
@@ -1153,7 +1154,8 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
       "Method": "方法", "Path": "路径", "Model": "模型", "Account": "账户",
       "Latency": "延迟", "Client": "客户端", "Kind": "类型", "Use": "用途",
       "Errors": "错误", "Aliases": "别名", "Built-in identities": "内置身份",
-      "Admin key": "管理密钥", "Checking…": "检查中…", "No accounts": "暂无账户",
+      "Admin key": "管理密钥", "Password": "密码", "Password is incorrect.": "密码不正确。",
+      "Checking…": "检查中…", "No accounts": "暂无账户",
       "active": "正常", "revoked": "已吊销", "expired": "已过期", "built-in": "内置",
       "read only": "只读", "never": "永不", "All keys": "全部密钥", "Active only": "仅正常",
       "Revoked": "已吊销", "Expired": "已过期", "Expiring within 7 days": "7 天内到期",
@@ -1167,8 +1169,8 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
       "within 7 days — rotate them": "7 天内 — 请轮换",
       "Monitor": "监控", "API gateway": "API 网关", "Quick nav": "快速导航",
       "Last hour": "最近 1 小时", "Today": "今天", "This week": "本周",
-      "Enter the admin key to open this gateway.": "输入管理密钥以打开此 API 网关。",
-      "Exchanged for an HttpOnly session cookie. The key itself is never stored in this browser.":
+      "Enter the dashboard password to open this gateway.": "输入控制台密码以打开此 API 网关。",
+      "Exchanged for an HttpOnly session cookie. The secret is never stored in this browser.":
         "会兑换为 HttpOnly 会话 Cookie，密钥本身不会保存在此浏览器中。",
       "Running now": "正在运行", "Requests over time": "请求趋势",
       "Top API keys": "热门 API 密钥", "By model": "按模型", "By status code": "按状态码",
@@ -1437,13 +1439,13 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
   }
   $("#login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const key = $("#login-key").value.trim();
+    const key = $("#login-key").value;
     if (!key) return;
     $("#login-btn").disabled = true;
     try {
       const res = await fetch("/admin/session", {method: "POST", credentials: "same-origin",
         headers: {"Content-Type": "application/json"}, body: JSON.stringify({key})});
-      if (!res.ok) { showLogin("Admin key is incorrect."); return; }
+      if (!res.ok) { showLogin("Password is incorrect."); return; }
       $("#login-key").value = "";
       start();
     } catch (err) { showLogin(err.message || String(err)); }
@@ -2736,7 +2738,7 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
     const show = inp.type === "password";
     inp.type = show ? "text" : "password";
     eye.setAttribute("aria-pressed", String(show));
-    eye.setAttribute("aria-label", show ? "Hide key" : "Show key");
+    eye.setAttribute("aria-label", show ? "Hide password" : "Show password");
   });
   document.addEventListener("keydown", (e) => {
     if (e.key !== "[" || e.ctrlKey || e.metaKey || e.altKey) return;

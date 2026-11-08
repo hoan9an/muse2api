@@ -1,6 +1,6 @@
-"""Dashboard sign-in: exchange the admin key once for an HttpOnly session cookie.
+"""Dashboard sign-in: exchange the dashboard password (or admin key) for a session cookie.
 
-Keeping the key out of ``localStorage`` means an XSS in the panel (or another tab
+Keeping the secret out of ``localStorage`` means an XSS in the panel (or another tab
 on the same origin) cannot read it, and the cookie is not reachable from JS at all.
 Header/Bearer auth keeps working unchanged for scripts and the extension.
 """
@@ -33,9 +33,11 @@ def _cookie_secure(request: Request) -> bool:
 @router.post("/session")
 async def login(body: LoginRequest, request: Request, response: Response,
                 svc: Services = Depends(get_services)) -> dict:
-    expected = svc.settings.effective_admin_key
-    if not expected or not hmac.compare_digest(body.key.encode(), expected.encode()):
-        raise Unauthorized("invalid admin key")
+    # The dashboard password is the normal way in; the admin key keeps working so
+    # scripts and the extension can still exchange it for a cookie.
+    candidates = (svc.settings.dashboard_password, svc.settings.effective_admin_key)
+    if not any(c and hmac.compare_digest(body.key.encode(), c.encode()) for c in candidates):
+        raise Unauthorized("invalid password or admin key")
     session = svc.sessions.create()
     response.set_cookie(COOKIE_NAME, session.token, max_age=int(svc.sessions.ttl),
                         httponly=True, samesite="lax", secure=_cookie_secure(request), path="/")

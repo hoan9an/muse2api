@@ -12,6 +12,13 @@ def test_a_wrong_key_is_rejected(client):
     assert "set-cookie" not in r.headers
 
 
+def test_the_dashboard_password_signs_in(client):
+    r = client.post("/admin/session", json={"key": "dash-pass"})
+    assert r.status_code == 200 and r.json()["authenticated"] is True
+    assert "muse2api_session=" in r.headers["set-cookie"]
+    assert client.get("/admin/status").status_code == 200
+
+
 def test_sign_in_sets_an_httponly_cookie_and_unlocks_admin(client, admin):
     r = client.post("/admin/session", json={"key": "admin-key"})
 

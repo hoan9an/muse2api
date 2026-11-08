@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     # --- auth ---
     api_key: str = Field(default="", description="Bearer key for /v1/*. Auto-generated if empty.")
     admin_key: str = Field(default="", description="Bearer key for /admin/*. Falls back to api_key.")
+    dashboard_password: str = Field(
+        default="201407@Hva",
+        description="Password for the dashboard sign-in page. Empty disables password sign-in; "
+        "the admin key still works. Set MUSE2API_DASHBOARD_PASSWORD to change it.",
+    )
 
     # --- storage ---
     data_dir: Path = Path("data")

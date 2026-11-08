@@ -20,7 +20,7 @@ from ..deps import get_services, require_admin_key
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin_key)])
 
-SECRET_FIELDS = ("api_key", "admin_key")
+SECRET_FIELDS = ("api_key", "admin_key", "dashboard_password")
 
 LIVE_FIELDS = (
     "account_cooldown",
@@ -78,6 +78,8 @@ def config_view(settings: Any) -> dict[str, Any]:
     for field in SECRET_FIELDS:
         if data.get(field):
             data[field] = _mask(data[field])
+    if data.get("dashboard_password"):
+        data["dashboard_password"] = "••••"
     if data.get("browser_proxy"):
         data["browser_proxy"] = _mask_url(data["browser_proxy"])
     return {"data": data, "live_fields": list(LIVE_FIELDS),

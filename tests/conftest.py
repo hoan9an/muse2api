@@ -18,6 +18,7 @@ def settings(tmp_path) -> Settings:
         data_dir=tmp_path / "data",
         api_key=API_KEY,
         admin_key=ADMIN_KEY,
+        dashboard_password="dash-pass",
         driver="mock",
     )
 
