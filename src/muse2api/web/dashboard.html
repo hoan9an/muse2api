@@ -773,15 +773,15 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
     </header>
 
     <main>
-      <div class="rangebar">
-        <div class="range" id="window" role="group" aria-label="Time range">
-          <button type="button" data-w="1h" aria-pressed="false">Last hour</button>
-          <button type="button" data-w="24h" aria-pressed="true">Today</button>
-          <button type="button" data-w="7d" aria-pressed="false">This week</button>
-        </div>
-      </div>
       <!-- overview -->
       <section class="page" id="page-overview" hidden>
+        <div class="rangebar">
+          <div class="range" id="window" role="group" aria-label="Time range">
+            <button type="button" data-w="1h" aria-pressed="false">Last hour</button>
+            <button type="button" data-w="24h" aria-pressed="true">Today</button>
+            <button type="button" data-w="7d" aria-pressed="false">This week</button>
+          </div>
+        </div>
         <div class="page-head">
           <div class="grow"><h1>Overview</h1><div class="sub">Traffic on <span class="mono">/v1/*</span>, excluding task polls. <span class="stamp" id="ov-stamp"></span></div></div>
           <div class="tools">
