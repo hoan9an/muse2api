@@ -618,7 +618,6 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
 .topbar .iconbtn::after, .topbar .burger::after { content: ""; position: absolute; inset: -6px; }
 #top-dot { display: none !important; }
 .side-foot { padding: 10px 12px 12px; gap: 8px; }
-.side-foot .health { margin: 0; }
 .side-foot #side-collapse { display: none; }
 .side-meta { width: 100%; display: flex; align-items: center; justify-content: space-between; }
 .side .langs { width: auto; grid-template-columns: repeat(3, 38px); align-self: flex-start; }
@@ -734,10 +733,10 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
       <a href="#playground" data-page="playground" title="Playground"><svg class="i"><use href="#i-play"/></svg><span class="nl">Playground</span></a>
       <a href="#settings" data-page="settings" title="Settings"><svg class="i"><use href="#i-sliders"/></svg><span class="nl">Settings</span></a>
     </nav>
+    <div class="health" id="health" role="status" aria-live="polite">
+      <span class="pulse" id="health-dot"></span><b id="health-text">Checking…</b><small id="health-sub">&nbsp;</small>
+    </div>
     <div class="side-foot">
-      <div class="health" id="health" role="status" aria-live="polite">
-        <span class="pulse" id="health-dot"></span><b id="health-text">Checking…</b><small id="health-sub">&nbsp;</small>
-      </div>
       <div class="side-meta">
         <span class="ver" id="version">v0.0.0</span>
         <a class="gh" href="https://github.com/hoan9an/muse2api" target="_blank" rel="noreferrer" aria-label="GitHub repository" title="GitHub"><svg class="i" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.9c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.4-1.1.7-1.3-2.2-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.7s.8-.3 2.8 1a9.5 9.5 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1a3.6 3.6 0 0 1 .1 2.7 3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg></a>
