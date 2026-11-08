@@ -421,8 +421,7 @@ tr.builtin td:first-child b { font-family: var(--mono); font-size: 12.5px; }
 .modal.wide { max-width: 760px; }
 .modal h3 { margin: 0; padding: 15px 18px 12px; font-size: 15.5px; letter-spacing: -.01em; }
 .modal .body { padding: 2px 18px 16px; display: flex; flex-direction: column; gap: 12px; }
-.modal .body p { margin: 0; }
-.modal .actions { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; background: var(--panel-2); border-radius: 0 0 12px 12px; }
+.modal .body p { margin: 0; }  .modal .actions { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; background: var(--panel-2); border-radius: 0 0 12px 12px; }
 label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted); font-weight: 550; }
 label.f input, label.f textarea { color: var(--text); font-size: 14px; font-weight: 400; padding: 7px 10px; }
 label.f .hint { font-weight: 400; color: var(--faint); font-size: 12px; }
@@ -661,6 +660,45 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
   .topbar .iconbtn, .topbar .burger { width: 30px; height: 30px; }
   .topbar .langs { flex: none; }
 }
+/* ================= models & keys redesign ================= */
+.model-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.model-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 14px;
+  display: flex; flex-direction: column; gap: 9px; }
+.model-card .mc-top { display: flex; align-items: center; gap: 8px; }
+.model-card .mc-ico { width: 34px; height: 34px; border-radius: var(--r); display: grid; place-items: center;
+  background: var(--panel-2); color: var(--accent); flex: none; }
+.model-card .mc-ico .i { width: 18px; height: 18px; }
+.model-card h3 { margin: 0; font-family: var(--mono); font-size: 14.5px; font-weight: 650; letter-spacing: -.01em; }
+.model-card p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; flex: 1; }
+.model-card .mc-stats { display: flex; gap: 22px; }
+.model-card .mc-stats b { display: block; font-family: var(--mono); font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.model-card .mc-stats span { color: var(--faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; }
+.model-card .mc-actions { display: flex; gap: 6px; }
+.model-lower { margin-top: 10px; align-items: start; }
+.alias-search { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--muted); }
+.alias-search .i { width: 15px; height: 15px; }
+.alias-search input { flex: 1; border: 0; background: none; padding: 0; outline: none; }
+.quickstart pre { margin: 0; padding: 10px; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--r-sm);
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.6; overflow: auto; color: var(--muted); }
+.quickstart .qs-line { display: flex; gap: 8px; align-items: center; margin: 6px 0 10px; }
+.quickstart .qs-line code { flex: 1; padding: 7px 9px; background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); overflow: hidden; text-overflow: ellipsis; }
+.quickstart .btn { margin-top: 10px; }
+.kd-top { display: flex; align-items: center; gap: 10px; }
+.kd-note { color: var(--muted); font-size: 12.5px; }
+#keys-body tr[data-id] { cursor: pointer; }
+#keys-body td.num .sub { font-size: 10.5px; color: var(--faint); font-family: var(--mono); margin-top: 2px; }
+.preset-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.preset-row button { padding: 2px 8px; font-size: 12px; }
+#page-keys .panel { width: 100%; }
+@media (max-width: 1600px) { #page-keys .hide-md { display: none; } }
+@media (max-width: 1000px) { #page-keys .hide-lg { display: none; } }
+@media (max-width: 900px) {
+  #page-keys .col-status { display: none; }
+  #page-keys .cell-name .m-status { display: inline-flex; }
+}
+@media (max-width: 760px) { #page-keys .hide-xs { display: none; } }
+@media (max-width: 640px) { .model-grid { grid-template-columns: minmax(0, 1fr); } }
 </style>
 </head>
 <body>
@@ -717,6 +755,9 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
   <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5" />
   <path d="M20 21a8 8 0 0 0-16 0" /></symbol>
   <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></symbol>
   <defs>
     <linearGradient id="brand-grad" x1="133.245" y1="109.046" x2="24.9203" y2="-12.5565" gradientUnits="userSpaceOnUse">
       <stop offset=".255" stop-color="#0082FB"/><stop offset=".697" stop-color="#0064E0"/><stop offset="1" stop-color="#0040DC"/>
@@ -890,8 +931,12 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
       <!-- keys -->
       <section class="page" id="page-keys" hidden>
         <div class="page-head">
-          <div class="grow"><h1>API Keys</h1><div class="sub">Keys clients use for <span class="mono">/v1/*</span>. The server stores only a hash — the key is shown once, when it is issued.</div></div>
-          <div class="tools"><button class="btn primary big" id="key-new" type="button"><svg class="i"><use href="#i-plus"/></svg>Issue API key</button></div>
+          <div class="grow"><h1>API Keys</h1><div class="sub">Keys clients use for <span class="mono">/v1/*</span>. The server stores only a hash — a secret is shown once, when it is issued or rotated.</div></div>
+          <div class="tools">
+            <button class="btn" id="k-export-csv" type="button" title="Download the filtered keys as CSV">CSV</button>
+            <button class="btn" id="k-export-json" type="button" title="Download the filtered keys as JSON">JSON</button>
+            <button class="btn primary big" id="key-new" type="button"><svg class="i"><use href="#i-plus"/></svg>Issue API key</button>
+          </div>
         </div>
         <div class="tiles" id="key-tiles" style="margin-bottom: 12px;"></div>
         <div class="filters">
@@ -907,21 +952,28 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
             <option value="revoked">Revoked</option>
             <option value="expired">Expired</option>
           </select>
+          <select id="k-sort" aria-label="Sort keys">
+            <option value="newest">Newest</option>
+            <option value="name">Name</option>
+            <option value="requests">Requests</option>
+            <option value="errors">Errors</option>
+            <option value="last">Last used</option>
+            <option value="expires">Expires</option>
+          </select>
           <span class="stamp" id="k-count"></span>
         </div>
         <div class="panel">
           <div class="tablewrap">
             <table class="resp">
               <thead><tr>
-                <th>Name</th><th class="hide-sm">Key</th><th>Status</th><th class="num">Total</th><th class="num">24h</th><th class="num">Errors 24h</th><th>Last request</th><th class="hide-sm">Expires</th><th></th>
+                <th>Name</th><th class="hide-md">Key</th><th class="col-status">Status</th><th class="num">Requests</th><th class="num">Errors 24h</th><th class="hide-md">Created</th><th class="hide-xs">Last used</th><th class="hide-lg">Expires</th><th></th>
               </tr></thead>
               <tbody id="keys-body"></tbody>
             </table>
           </div>
         </div>
-        <p class="muted" style="font-size: 12px; margin: 8px 2px 0;">Figures come from the request log (kept for the configured retention period) and exclude polls. Click a row to see that key's requests; Rotate replaces its secret without touching its history.</p>
+        <p class="muted" style="font-size: 12px; margin: 8px 2px 0;">Usage comes from the request log (polls excluded). Click a key for its details; Rotate replaces the secret without touching the usage history.</p>
       </section>
-
       <!-- requests -->
       <section class="page" id="page-requests" hidden>
         <div class="page-head">
@@ -974,18 +1026,36 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
       <!-- models -->
       <section class="page" id="page-models" hidden>
         <div class="page-head">
-          <div class="grow"><h1>Models</h1><div class="sub">The three models muse.ai actually serves, with traffic from the request log. <span class="stamp" id="mdl-stamp"></span></div></div>
-          <div class="tools"><button class="btn" id="mdl-refresh" type="button"><svg class="i"><use href="#i-refresh"/></svg>Refresh</button></div>
+          <div class="grow"><h1>Models</h1><div class="sub">What <span class="mono">/v1/models</span> serves, with traffic from the request log. <span class="stamp" id="mdl-stamp"></span></div></div>
+          <div class="tools">
+            <div class="seg" id="mdl-window" role="group" aria-label="Traffic window">
+              <button type="button" data-w="1h">1h</button>
+              <button type="button" data-w="24h" aria-pressed="true">24h</button>
+              <button type="button" data-w="7d">7d</button>
+            </div>
+            <button class="btn" id="mdl-refresh" type="button"><svg class="i"><use href="#i-refresh"/></svg>Refresh</button>
+          </div>
         </div>
-        <div class="panel"><div class="tablewrap"><table>
-          <thead><tr><th>Model</th><th>Kind</th><th class="hide-sm">Use</th><th class="num">Requests</th><th class="num">Errors</th><th></th></tr></thead>
-          <tbody id="mdl-body"></tbody>
-        </table></div></div>
-        <h2>Compatibility aliases <span class="link" id="mdl-alias-count"></span></h2>
-        <p class="muted" style="font-size:12px; margin:-2px 2px 8px;">These are not separate models. Each name is translated to a muse model before the upstream call, so an OpenAI SDK keeps working unchanged. Click a name to copy it.</p>
-        <div class="panel" style="overflow:hidden"><div class="aliasgrid" id="mdl-alias"></div></div>
+        <div class="model-grid" id="mdl-cards"></div>
+        <div class="grid2 model-lower">
+          <div class="panel">
+            <div class="cardhead">Compatibility aliases <span class="link" id="mdl-alias-count"></span></div>
+            <div class="alias-search">
+              <svg class="i"><use href="#i-search"/></svg>
+              <input type="text" id="mdl-alias-q" placeholder="Filter aliases…" aria-label="Filter aliases" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="aliasgrid" id="mdl-alias"></div>
+          </div>
+          <div class="panel pad quickstart">
+            <div class="cardhead" style="padding:0 0 8px;border:0">Quick start</div>
+            <p class="muted" style="font-size:12.5px;margin:0 0 10px">Point any OpenAI SDK at this base URL and use a model id above. Names in the alias list work too.</p>
+            <label class="f">Base URL</label>
+            <div class="qs-line"><code class="mono" id="mdl-endpoint"></code><button class="btn sm" type="button" id="mdl-copy-url">Copy</button></div>
+            <pre id="mdl-snippet"></pre>
+            <button class="btn" type="button" id="mdl-copy-snippet"><svg class="i"><use href="#i-copy"/></svg>Copy example</button>
+          </div>
+        </div>
       </section>
-
       <!-- playground -->
       <section class="page" id="page-playground" hidden>
         <div class="page-head">
@@ -1108,6 +1178,11 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
       "Kind": "Loại", "Use": "Cách dùng", "Errors": "Lỗi", "Aliases": "Bí danh",
       "Built-in identities": "Danh tính có sẵn", "Admin key": "Khoá quản trị",
       "Password": "Mật khẩu", "Password is incorrect.": "Mật khẩu không đúng.",
+      "Details": "Chi tiết", "Sort": "Sắp xếp", "Newest": "Mới nhất", "Last used": "Dùng gần nhất",
+      "Copy key ID": "Sao chép ID khoá", "Key ID": "ID khoá", "Copy ID": "Sao chép ID", "Try": "Thử",
+      "View requests": "Xem yêu cầu", "View requests for": "Xem yêu cầu của",
+      "Filter aliases…": "Lọc bí danh…", "Quick start": "Bắt đầu nhanh", "Base URL": "URL gốc",
+      "Copy example": "Sao chép ví dụ",
       "Checking…": "Đang kiểm tra…", "No accounts": "Chưa có tài khoản",
       "active": "đang hoạt động", "revoked": "đã thu hồi", "expired": "đã hết hạn",
       "built-in": "có sẵn", "read only": "chỉ đọc", "never": "không",
@@ -1155,6 +1230,11 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
       "Latency": "延迟", "Client": "客户端", "Kind": "类型", "Use": "用途",
       "Errors": "错误", "Aliases": "别名", "Built-in identities": "内置身份",
       "Admin key": "管理密钥", "Password": "密码", "Password is incorrect.": "密码不正确。",
+      "Details": "详情", "Sort": "排序", "Newest": "最新", "Last used": "最近使用",
+      "Copy key ID": "复制密钥 ID", "Key ID": "密钥 ID", "Copy ID": "复制 ID", "Try": "试用",
+      "View requests": "查看请求", "View requests for": "查看请求：",
+      "Filter aliases…": "筛选别名…", "Quick start": "快速开始", "Base URL": "基础 URL",
+      "Copy example": "复制示例",
       "Checking…": "检查中…", "No accounts": "暂无账户",
       "active": "正常", "revoked": "已吊销", "expired": "已过期", "built-in": "内置",
       "read only": "只读", "never": "永不", "All keys": "全部密钥", "Active only": "仅正常",
@@ -1850,13 +1930,18 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
 
   function usageCells(u) {
     u = u || {};
-    const n = (v, cls = "") => `<td class="num ${v ? cls : "zero"}"`;
-    return `${n(u.total)} data-label="Total">${fmtNum(u.total || 0)}</td>
-      ${n(u.requests_24h)} data-label="24h">${fmtNum(u.requests_24h || 0)}</td>
-      ${n(u.errors_24h, "hot")} data-label="Errors 24h">${fmtNum(u.errors_24h || 0)}</td>
-      <td data-label="Last request" title="${esc(fullTime(u.last_request_at))}">${esc(u.last_request_at ? ago(u.last_request_at) : "none yet")}</td>`;
+    return `<td class="num" data-label="Requests">${fmtNum(u.total || 0)}${u.requests_24h ? `<div class="sub">${fmtNum(u.requests_24h)} in 24h</div>` : ""}</td>
+      <td class="num ${u.errors_24h ? "hot" : "zero"}" data-label="Errors 24h">${fmtNum(u.errors_24h || 0)}</td>`;
   }
-
+  function lastUsedCell(u) {
+    u = u || {};
+    const ts = u.last_request_at;
+    return `<td class="hide-xs" data-label="Last used" title="${esc(ts ? fullTime(ts) : "")}">${esc(ts ? ago(ts) : "never")}</td>`;
+  }
+  function fmtDate(ts) {
+    if (!ts) return "—";
+    return new Date(ts * 1000).toLocaleDateString(undefined, {day: "2-digit", month: "short", year: "numeric"});
+  }
   function keyStatus(k) {
     return k.revoked ? "revoked" : k.expired ? "expired" : "active";
   }
@@ -1864,7 +1949,7 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
   function visibleKeys() {
     const q = (state.keyQuery || "").trim().toLowerCase();
     const horizon = now() + 7 * 86400;
-    return state.keys.filter((k) => {
+    const list = state.keys.filter((k) => {
       if (q) {
         const hay = `${k.name || ""} ${k.note || ""} ${k.prefix || ""} ${k.id || ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -1878,6 +1963,17 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
       }
       return true;
     });
+    const num = (v) => Number(v) || 0;
+    const cmp = {
+      newest: (a, b) => num(b.created_at) - num(a.created_at),
+      name: (a, b) => String(a.name || "").localeCompare(String(b.name || "")),
+      requests: (a, b) => num(b.usage && b.usage.total) - num(a.usage && a.usage.total),
+      errors: (a, b) => num(b.usage && b.usage.errors_24h) - num(a.usage && a.usage.errors_24h),
+      last: (a, b) => num(b.usage && b.usage.last_request_at) - num(a.usage && a.usage.last_request_at),
+      expires: (a, b) => (a.expires_at || Infinity) - (b.expires_at || Infinity),
+    };
+    list.sort(cmp[state.keySort] || cmp.newest);
+    return list;
   }
   function statusBadgeK(k) {
     const st = keyStatus(k);
@@ -1886,13 +1982,13 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
     return `<span class="badge b-err">revoked</span>`;
   }
   function expiryCell(k) {
-    if (!k.expires_at) return `<td class="hide-sm muted" data-label="Expires">never</td>`;
+    if (!k.expires_at) return `<td class="hide-lg muted" data-label="Expires">never</td>`;
     const left = k.expires_at - now();
     const when = esc(fullTime(k.expires_at));
-    if (left <= 0) return `<td class="hide-sm hot" data-label="Expires" title="${when}">expired</td>`;
+    if (left <= 0) return `<td class="hide-lg hot" data-label="Expires" title="${when}">expired</td>`;
     const days = Math.ceil(left / 86400);
     const cls = left <= 7 * 86400 ? "warn" : "";
-    return `<td class="hide-sm ${cls}" data-label="Expires" title="${when}">in ${days}d</td>`;
+    return `<td class="hide-lg ${cls}" data-label="Expires" title="${when}">in ${days}d</td>`;
   }
   function renderKeys() {
     const all = [...state.keys, ...state.builtin].map((k) => k.usage || {});
@@ -1913,14 +2009,15 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
         err24 && err24 / req24 >= 0.1 ? "bad" : ""),
     ].join("");
     const shown = visibleKeys();
-    const rows = shown.map((k) => `<tr class="click" data-id="${esc(k.id)}" tabindex="0" title="View requests for ${esc(k.name)}">
+    const rows = shown.map((k) => `<tr class="click" data-id="${esc(k.id)}" tabindex="0" title="Open details for ${esc(k.name)}">
         <td class="cell-name"><div><b>${esc(k.name)}</b>${k.note ? `<div class="sub" title="${esc(k.note)}">${esc(k.note)}</div>` : ""}</div><span class="m-status">${statusBadgeK(k)}</span></td>
-        <td class="mono hide-sm" data-label="Key">${esc(k.prefix)}…</td>
-        <td class="cell-status" data-label="Status">${statusBadgeK(k)}</td>
+        <td class="mono hide-md" data-label="Key">${esc(k.prefix)}…</td>
+        <td class="cell-status col-status" data-label="Status">${statusBadgeK(k)}</td>
         ${usageCells(k.usage)}
+        <td class="hide-md muted" data-label="Created">${fmtDate(k.created_at)}</td>
+        ${lastUsedCell(k.usage)}
         ${expiryCell(k)}
         <td class="actions"><div class="row">
-          <button class="btn sm" type="button" data-act="edit">Rename</button>
           <button class="btn sm" type="button" data-act="rotate" title="Issue a new secret, keep the usage history">Rotate</button>
           <button class="btn sm" type="button" data-act="${k.revoked ? "unrevoke" : "revoke"}">${k.revoked ? "Restore" : "Revoke"}</button>
           <button class="btn sm danger" type="button" data-act="delete">Delete</button>
@@ -1930,10 +2027,12 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
       }</td></tr>`;
     const builtin = keyFiltering() ? "" : state.builtin.map((b) => `<tr class="click builtin" data-id="${esc(b.id)}" tabindex="0" title="View requests for ${esc(b.name)}">
         <td class="cell-name"><div><b>${esc(b.name)}</b><div class="sub">${esc(BUILTIN_NOTE[b.id] || "")}</div></div><span class="m-status"><span class="badge b-mute">built-in</span></span></td>
-        <td class="mono hide-sm muted" data-label="Key">env</td>
-        <td class="cell-status" data-label="Status"><span class="badge b-mute">built-in</span></td>
+        <td class="mono hide-md muted" data-label="Key">env</td>
+        <td class="cell-status col-status" data-label="Status"><span class="badge b-mute">built-in</span></td>
         ${usageCells(b.usage)}
-        <td class="hide-sm muted" data-label="Expires">–</td>
+        <td class="hide-md muted" data-label="Created">—</td>
+        ${lastUsedCell(b.usage)}
+        <td class="hide-lg muted" data-label="Expires">—</td>
         <td class="actions muted" style="font-size:12px">read only</td>
       </tr>`).join("");
     $("#keys-body").innerHTML = rows + (builtin ? `<tr class="sep"><td colspan="9">Built-in identities</td></tr>${builtin}` : "");
@@ -1944,6 +2043,44 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
     await fetchKeys();
     renderKeys();
   }
+
+  // ---- key toolbar: sort + exports ----
+  $("#k-sort").addEventListener("change", (e) => { state.keySort = e.target.value; renderKeys(); });
+  function csvCell(v) {
+    const s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+  function downloadText(name, text, mime) {
+    const a = document.createElement("a");
+    const url = URL.createObjectURL(new Blob([text], {type: mime}));
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function keyExportRows() {
+    return visibleKeys().map((k) => ({
+      id: k.id, name: k.name, prefix: k.prefix, status: keyStatus(k), note: k.note || "",
+      created_at: k.created_at, last_used_at: k.last_used_at, expires_at: k.expires_at,
+      usage: k.usage || {},
+    }));
+  }
+  function keyStamp() { return new Date().toISOString().slice(0, 10); }
+  $("#k-export-json").addEventListener("click", () => {
+    const rows = keyExportRows();
+    downloadText(`muse2api-keys-${keyStamp()}.json`, JSON.stringify(rows, null, 2), "application/json");
+    toast(`Exported ${fmtNum(rows.length)} keys`);
+  });
+  $("#k-export-csv").addEventListener("click", () => {
+    const rows = keyExportRows();
+    const head = ["name", "prefix", "status", "created_at", "last_used_at", "expires_at",
+      "requests_total", "requests_24h", "errors_24h"];
+    const iso = (ts) => ts ? new Date(ts * 1000).toISOString() : "";
+    const lines = [head.join(",")].concat(rows.map((r) => [
+      r.name, r.prefix, r.status, iso(r.created_at), iso(r.last_used_at), iso(r.expires_at),
+      r.usage.total, r.usage.requests_24h, r.usage.errors_24h,
+    ].map(csvCell).join(",")));
+    downloadText(`muse2api-keys-${keyStamp()}.csv`, lines.join("\n"), "text/csv");
+    toast(`Exported ${fmtNum(rows.length)} keys`);
+  });
 
   function expiryInput(k) {
     const v = k.expires_at ? new Date(k.expires_at * 1000).toISOString().slice(0, 10) : "";
@@ -1956,18 +2093,32 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
     return Number.isFinite(ts) ? Math.floor(ts / 1000) : null;
   }
   async function keyForm(title, k = {}, submit = "Save") {
-    return modal({
+    const p = modal({
       title,
       body: `<label class="f">Name<input type="text" id="kf-name" maxlength="100" value="${esc(k.name || "")}" placeholder="e.g. alice-laptop, n8n-prod" autocomplete="off"></label>
         <label class="f">Note <span class="hint">optional — who uses it, and for what</span><input type="text" id="kf-note" maxlength="500" value="${esc(k.note || "")}" autocomplete="off"></label>
-        <label class="f">Expires <span class="hint">optional — leave empty for a key that never expires</span>${expiryInput(k)}</label>`,
+        <label class="f">Expires <span class="hint">optional — leave empty for a key that never expires</span>${expiryInput(k)}
+          <div class="preset-row" id="kf-presets">
+            <button type="button" class="btn sm" data-days="30">30d</button>
+            <button type="button" class="btn sm" data-days="90">90d</button>
+            <button type="button" class="btn sm" data-days="365">1y</button>
+            <button type="button" class="btn sm" data-days="">Never</button>
+          </div></label>`,
       actions: [{label: "Cancel", value: null},
         {label: submit, primary: true, cls: "primary",
          collect: () => ({name: $("#kf-name").value.trim(), note: $("#kf-note").value.trim(),
                           expires_at: readExpiry()}),
          check: (v) => v.name ? "" : "A name is required."}],
     });
+    for (const b of $$("#kf-presets button")) b.addEventListener("click", () => {
+      const days = Number(b.dataset.days);
+      if (!days) { $("#kf-exp").value = ""; return; }
+      const d = new Date(Date.now() + days * 864e5);
+      $("#kf-exp").value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    });
+    return p;
   }
+
   async function showSecret(title, apiKey) {
     return modal({
       title,
@@ -1999,35 +2150,72 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
   });
 
   function openKeyRequests(id) { go("requests", {key: id}); }
+  async function rotateKeyFlow(k) {
+    const ident = `<b>${esc(k.name)}</b> (<span class="mono">${esc(k.prefix)}…</span>)`;
+    if (!await confirmBox("Rotate key?", `<p>Issue a new secret for ${ident}. The current secret stops working immediately; usage history stays with the key.</p>`, "Rotate key")) return;
+    const res = await api(`/admin/keys/${encodeURIComponent(k.id)}/rotate`, {method: "POST"});
+    await loadKeys();
+    await showSecret(`Rotated key “${res.key.name}”`, res.api_key);
+  }
+  async function openKeyDetails(k) {
+    const u = k.usage || {};
+    const choice = await modal({
+      title: `Key “${k.name}”`,
+      body: `<div class="kd-top">${statusBadgeK(k)}<span class="mono">${esc(k.prefix)}…</span></div>
+        ${k.note ? `<p class="kd-note">${esc(k.note)}</p>` : ""}
+        <dl class="kv">
+          <dt>Key ID</dt><dd>${esc(k.id)}</dd>
+          <dt>Created</dt><dd>${esc(fullTime(k.created_at))}</dd>
+          <dt>Last used</dt><dd>${k.last_used_at ? esc(fullTime(k.last_used_at)) : "never"}</dd>
+          <dt>Expires</dt><dd>${k.expires_at ? esc(fullTime(k.expires_at)) : "never"}</dd>
+          <dt>Requests</dt><dd>${fmtNum(u.total || 0)} total · ${fmtNum(u.requests_24h || 0)} in 24h</dd>
+          <dt>Errors 24h</dt><dd>${fmtNum(u.errors_24h || 0)}</dd>
+        </dl>`,
+      actions: [
+        {label: "Copy key ID", value: "copy"},
+        {label: "View requests", value: "requests"},
+        {label: "Rename", value: "edit"},
+        {label: "Rotate", value: "rotate"},
+        {label: "Close", value: null},
+      ],
+    });
+    if (choice === "copy") {
+      try { await navigator.clipboard.writeText(k.id); toast("Key ID copied"); }
+      catch { toast("Copy failed — select it in the details instead"); }
+      return;
+    }
+    if (choice === "requests") return openKeyRequests(k.id);
+    if (choice === "edit") {
+      const form = await keyForm("Edit key", k);
+      if (!form) return;
+      await api(`/admin/keys/${encodeURIComponent(k.id)}`, {method: "PATCH", body: form});
+      toast("Key updated");
+      await loadKeys();
+      return;
+    }
+    if (choice === "rotate") return rotateKeyFlow(k);
+  }
   $("#keys-body").addEventListener("keydown", (e) => {
     const tr = e.target.closest("tr[data-id]");
-    if (tr && e.key === "Enter" && e.target === tr) openKeyRequests(tr.dataset.id);
+    if (!tr || e.key !== "Enter" || e.target !== tr) return;
+    const k = state.keys.find((x) => x.id === tr.dataset.id);
+    if (k) guarded(() => openKeyDetails(k)); else openKeyRequests(tr.dataset.id);
   });
   $("#keys-body").addEventListener("click", (e) => {
     const tr = e.target.closest("tr[data-id]");
     if (!tr) return;
     const btn = e.target.closest("button[data-act]");
-    if (!btn) return openKeyRequests(tr.dataset.id);
     const k = state.keys.find((x) => x.id === tr.dataset.id);
-    if (!k) return;
+    if (!k) return openKeyRequests(tr.dataset.id);
+    if (!btn) return guarded(() => openKeyDetails(k));
     guarded(async () => {
       const path = `/admin/keys/${encodeURIComponent(k.id)}`;
       const ident = `<b>${esc(k.name)}</b> (<span class="mono">${esc(k.prefix)}…</span>)`;
       switch (btn.dataset.act) {
-        case "edit": {
-          const form = await keyForm("Edit key", k);
-          if (!form) return;
-          await api(path, {method: "PATCH", body: form});
-          toast("Key updated");
-          break;
-        }
-        case "rotate": {
-          if (!await confirmBox("Rotate key?", `<p>Issue a new secret for ${ident}. The current secret stops working immediately; usage history stays with the key.</p>`, "Rotate key")) return;
-          const res = await api(`${path}/rotate`, {method: "POST"});
-          await loadKeys();
-          await showSecret(`Rotated key “${res.key.name}”`, res.api_key);
-          return;
-        }
+        case "details":
+          return openKeyDetails(k);
+        case "rotate":
+          return rotateKeyFlow(k);
         case "revoke":
           if (!await confirmBox("Revoke key?", `<p>Every request using ${ident} will get 401 until the key is restored.</p>`, "Revoke")) return;
           await api(path, {method: "PATCH", body: {revoked: true}});
@@ -2372,41 +2560,87 @@ main { max-width: 1120px; padding: 20px 24px 60px; }
   $("#cfg-q").addEventListener("input", () => { if (state.config) renderConfig(); });
 
   // ---- models ----
-  async function loadModelsPage() {
-    const res = await api(`/admin/models?window=${state.window}`);
-    state.models = res.data || [];
-    const total = state.models.reduce((s, m) => s + m.requests, 0);
-    $("#mdl-stamp").textContent = `· ${fmtNum(total)} requests in the last ${state.window}`;
-    $("#mdl-body").innerHTML = state.models.map((m) => `<tr>
-        <td class="mono">${esc(m.id)}</td>
-        <td><span class="badge plain ${m.kind === "chat" ? "b-info" : m.kind === "image" ? "b-ok" : "b-warn"}">${esc(m.kind)}</span></td>
-        <td class="hide-sm muted trunc" data-label="Use">${esc(m.description || "—")}</td>
-        <td class="num" data-label="Requests">${fmtNum(m.requests)}</td>
-        <td class="num ${m.errors ? "hot" : "zero"}" data-label="Errors">${fmtNum(m.errors)}</td>
-        <td class="actions"><button class="btn sm" type="button" data-try="${esc(m.id)}"${m.kind === "chat" ? "" : " disabled title=\"The playground runs chat models only\""}>Try</button></td>
-      </tr>`).join("");
-    const aliases = res.aliases || [];
-    $("#mdl-alias-count").textContent = aliases.length ? `${aliases.length} names` : "";
-    $("#mdl-alias").innerHTML = aliases.map((a) => `<button type="button" class="aliasrow" data-alias="${esc(a.id)}" title="Copy ${esc(a.id)}">
+  const MODEL_ICONS = {chat: "i-chat", image: "i-image", video: "i-video"};
+  function modelCurl(models) {
+    const chat = (models || []).find((m) => m.kind === "chat") || {id: "muse-chat"};
+    return [
+      `curl ${location.origin}/v1/chat/completions \\`,
+      `  -H "Authorization: Bearer $MUSE2API_API_KEY" \\`,
+      `  -H "Content-Type: application/json" \\`,
+      `  -d '{"model":"${chat.id}","messages":[{"role":"user","content":"Hello"}]}'`,
+    ].join("\n");
+  }
+  async function copyText(text, okMsg) {
+    try { await navigator.clipboard.writeText(text); toast(okMsg); }
+    catch { toast("Copy failed — select the text instead"); }
+  }
+  function renderModelAliases() {
+    const aliases = state.modelAliases || [];
+    const q = ($("#mdl-alias-q").value || "").trim().toLowerCase();
+    const list = aliases.filter((a) => !q || `${a.id} ${a.target}`.toLowerCase().includes(q));
+    $("#mdl-alias").innerHTML = list.map((a) => `<button type="button" class="aliasrow" data-alias="${esc(a.id)}" title="Copy ${esc(a.id)}">
         <span class="mono an">${esc(a.id)}</span>
         <span class="ar">→</span>
         <span class="mono at">${esc(a.target)}</span>
         <span class="badge plain ${a.kind === "chat" ? "b-info" : a.kind === "image" ? "b-ok" : "b-warn"}">${esc(a.kind)}</span>
       </button>`).join("") || `<div class="empty" style="grid-column:1/-1"><b>No aliases</b><span>An alias maps a familiar OpenAI model name onto a muse model.</span></div>`;
   }
-  $("#mdl-refresh").addEventListener("click", () => guarded(loadModelsPage));
-  $("#mdl-alias").addEventListener("click", async (e) => {
-    const row = e.target.closest("button[data-alias]");
-    if (!row) return;
-    try { await navigator.clipboard.writeText(row.dataset.alias); toast(`Copied ${row.dataset.alias}`); }
-    catch { toast("Copy failed — select the name instead"); }
-  });
-  $("#mdl-body").addEventListener("click", (e) => {
-    const b = e.target.closest("button[data-try]");
+  function renderModels(res) {
+    const models = res.data || [];
+    const aliases = res.aliases || [];
+    state.models = models;
+    state.modelAliases = aliases;
+    const total = models.reduce((s, m) => s + m.requests, 0);
+    const errors = models.reduce((s, m) => s + m.errors, 0);
+    const win = state.modelWindow || "24h";
+    $("#mdl-stamp").textContent = `· ${fmtNum(total)} requests · ${total ? fmtPct(errors / total) : "0%"} errors in ${win}`;
+    $("#mdl-cards").innerHTML = models.map((m) => `<article class="model-card">
+        <div class="mc-top"><span class="mc-ico"><svg class="i"><use href="#${MODEL_ICONS[m.kind] || "i-cube"}"/></svg></span>
+          <span class="badge plain ${m.kind === "chat" ? "b-info" : m.kind === "image" ? "b-ok" : "b-warn"}">${esc(m.kind)}</span></div>
+        <h3>${esc(m.id)}</h3>
+        <p>${esc(m.description || "—")}</p>
+        <div class="mc-stats">
+          <div><b>${fmtNum(m.requests)}</b><span>requests</span></div>
+          <div><b class="${m.errors ? "hot" : ""}">${fmtNum(m.errors)}</b><span>errors</span></div>
+        </div>
+        <div class="mc-actions">
+          <button class="btn sm" type="button" data-copy-id="${esc(m.id)}">Copy ID</button>
+          <button class="btn sm" type="button" data-try="${esc(m.id)}"${m.kind === "chat" ? "" : " disabled title=\"The playground runs chat models only\""}>Try</button>
+        </div>
+      </article>`).join("");
+    $("#mdl-alias-count").textContent = aliases.length ? `${aliases.length} names` : "";
+    $("#mdl-endpoint").textContent = `${location.origin}/v1`;
+    $("#mdl-snippet").textContent = modelCurl(models);
+    renderModelAliases();
+  }
+  async function loadModelsPage() {
+    state.modelWindow = state.modelWindow || "24h";
+    for (const b of $$("#mdl-window button")) b.setAttribute("aria-pressed", String(b.dataset.w === state.modelWindow));
+    const res = await api(`/admin/models?window=${state.modelWindow}`);
+    renderModels(res);
+  }
+  $("#mdl-window").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-w]");
     if (!b) return;
+    state.modelWindow = b.dataset.w;
+    guarded(loadModelsPage);
+  });
+  $("#mdl-refresh").addEventListener("click", () => guarded(loadModelsPage));
+  $("#mdl-alias-q").addEventListener("input", renderModelAliases);
+  $("#mdl-alias").addEventListener("click", (e) => {
+    const row = e.target.closest("button[data-alias]");
+    if (row) copyText(row.dataset.alias, `Copied ${row.dataset.alias}`);
+  });
+  $("#mdl-cards").addEventListener("click", (e) => {
+    const copy = e.target.closest("button[data-copy-id]");
+    if (copy) return copyText(copy.dataset.copyId, `Copied ${copy.dataset.copyId}`);
+    const b = e.target.closest("button[data-try]");
+    if (!b || b.disabled) return;
     state.playModel = b.dataset.try;
     go("playground");
   });
+  $("#mdl-copy-url").addEventListener("click", () => copyText($("#mdl-endpoint").textContent, "Base URL copied"));
+  $("#mdl-copy-snippet").addEventListener("click", () => copyText($("#mdl-snippet").textContent, "Example copied"));
 
   // ---- playground ----
   async function loadPlaygroundPage() {
