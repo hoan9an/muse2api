@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "muse2api"
-version = "0.4.0"
+version = "0.5.0"
 description = "OpenAI-compatible gateway for muse.ai with pluggable upstream drivers"
 readme = "README.md"
 license = { text = "MIT" }
@@ -44,6 +44,7 @@ packages = ["src/muse2api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = [".", "src"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
@@ -54,4 +55,11 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "ASYNC"]
-ignore = ["E501", "B008"]
+ignore = ["E501", "B008", "B009"]
+
+[tool.pyright]
+include = ["src", "tests"]
+exclude = ["**/__pycache__"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"

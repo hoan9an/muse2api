@@ -8,14 +8,17 @@ protocol, ...) only needs to implement this class.
 
 from __future__ import annotations
 
-import asyncio
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, NoReturn
 
-from ..accounts.model import Account
 from ..errors import FeatureNotImplemented
+
+if TYPE_CHECKING:
+    import asyncio
+
+    from ..accounts.model import Account
 
 ProgressCallback = Callable[[int], None]
 """Receives a 0-100 progress estimate."""
@@ -33,11 +36,11 @@ class InputImage:
 class ChatRequest:
     prompt: str
     model: str
-    images: list[InputImage] = field(default_factory=list)
+    images: list[InputImage] = field(default_factory=list[InputImage])
     timeout: float = 300.0
     first_token_timeout: float = 75.0
     conversation_hint: str | None = None
-    turns: list[tuple[str, str]] = field(default_factory=list)
+    turns: list[tuple[str, str]] = field(default_factory=list[tuple[str, str]])
     """Role/text pairs of the request, used to continue a hot page instead of resending history."""
     cancel: asyncio.Event | None = None
 
@@ -49,7 +52,7 @@ class ImageRequest:
     size: str | None = None
     """Aspect ratio such as ``1:1`` / ``16:9`` or an OpenAI size like ``1024x1024``."""
     n: int = 1
-    reference_images: list[InputImage] = field(default_factory=list)
+    reference_images: list[InputImage] = field(default_factory=list[InputImage])
     timeout: float = 240.0
     on_progress: ProgressCallback | None = None
     cancel: asyncio.Event | None = None
@@ -81,9 +84,9 @@ class MediaResult:
 @dataclass
 class SessionInfo:
     ok: bool
-    cookies: dict[str, str] = field(default_factory=dict)
-    cookie_expires: dict[str, int] = field(default_factory=dict)
-    meta: dict[str, Any] = field(default_factory=dict)
+    cookies: dict[str, str] = field(default_factory=dict[str, str])
+    cookie_expires: dict[str, int] = field(default_factory=dict[str, int])
+    meta: dict[str, Any] = field(default_factory=dict[str, Any])
 
 
 @dataclass(frozen=True)
@@ -114,18 +117,33 @@ class MuseDriver(ABC):
     async def health(self) -> dict[str, Any]:
         return {"driver": self.name, "ok": True}
 
+    def _unsupported(self, what: str) -> NoReturn:
+        """Raise FeatureNotImplemented for a capability this driver lacks."""
+        message = f"driver '{self.name}' does not support {what}"
+        raise FeatureNotImplemented(message)
+
     @abstractmethod
     def chat_stream(self, account: Account, req: ChatRequest) -> AsyncIterator[str]:
         """Yield assistant text deltas. Implementations are async generators."""
 
-    async def generate_image(self, account: Account, req: ImageRequest) -> list[MediaResult]:
-        raise FeatureNotImplemented(f"driver '{self.name}' does not support image generation")
+    async def chat_complete(self, account: Account, req: ChatRequest) -> str:
+        """The full reply text for a non-streaming call.
 
-    async def generate_video(self, account: Account, req: VideoRequest) -> MediaResult:
-        raise FeatureNotImplemented(f"driver '{self.name}' does not support video generation")
+        The default assembles the delta stream, which is exact for drivers
+        that yield true deltas. Drivers whose native text is a cumulative
+        snapshot override this so the reply is the final snapshot itself,
+        never a join of deltas that had to stay append-only while streaming.
+        """
+        return "".join([delta async for delta in self.chat_stream(account, req)])
 
-    async def renew_session(self, account: Account) -> SessionInfo:
-        raise FeatureNotImplemented(f"driver '{self.name}' does not support session renewal")
+    async def generate_image(self, account: Account, req: ImageRequest) -> list[MediaResult]:  # noqa: ARG002
+        self._unsupported("image generation")
 
-    async def quota(self, account: Account) -> dict[str, Any]:
-        raise FeatureNotImplemented(f"driver '{self.name}' does not support quota lookup")
+    async def generate_video(self, account: Account, req: VideoRequest) -> MediaResult:  # noqa: ARG002
+        self._unsupported("video generation")
+
+    async def renew_session(self, account: Account) -> SessionInfo:  # noqa: ARG002
+        self._unsupported("session renewal")
+
+    async def quota(self, account: Account) -> dict[str, Any]:  # noqa: ARG002
+        self._unsupported("quota lookup")

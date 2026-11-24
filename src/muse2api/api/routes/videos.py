@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from typing import Annotated, Any
+
 from fastapi import APIRouter, Depends, Request
 
 from ...core.media import MAX_REFERENCE_ITEMS, MAX_REFERENCE_TOTAL_BYTES, load_media_ref
 from ...core.models import resolve_model
-from ...drivers.base import InputImage, VideoRequest
+from ...drivers.base import InputImage, ProgressCallback, VideoRequest
 from ...errors import InvalidRequest, NotFound
 from ...services.container import Services
 from ...services.tasks import Task
@@ -14,7 +16,7 @@ from ..schemas import VideoCreateRequest
 router = APIRouter(tags=["videos"], dependencies=[Depends(require_api_key)])
 
 
-def _task_view(task: Task) -> dict:
+def _task_view(task: Task) -> dict[str, Any]:
     return {
         "id": task.id,
         "object": "video",
@@ -27,7 +29,7 @@ def _task_view(task: Task) -> dict:
     }
 
 
-def _values(value) -> list[str]:
+def _values(value: Any) -> list[str]:
     if value is None:
         return []
     return [str(item) for item in value] if isinstance(value, list) else [str(value)]
@@ -40,14 +42,15 @@ async def _load_extra_refs(body: VideoCreateRequest) -> list[InputImage]:
         for ref in _values(getattr(body, field, None)):
             data, mime = await load_media_ref(ref, kind=kind)
             if kind == "image" and not mime.startswith("image/"):
-                raise InvalidRequest("image references must have an image/* MIME type")
+                message = "image references must have an image/* MIME type"
+                raise InvalidRequest(message)
             refs.append(InputImage(data=data, mime=mime, kind=kind))
     return refs
 
 
 @router.post("/v1/videos")
 async def create_video(body: VideoCreateRequest, request: Request,
-                       svc: Services = Depends(get_services)) -> dict:
+                       svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     request.state.model = body.model  # logged even if it does not resolve
     spec = resolve_model(body.model, "video")
     request.state.model = body.model or spec.id
@@ -59,14 +62,17 @@ async def create_video(body: VideoCreateRequest, request: Request,
     extra = await _load_extra_refs(body)
     references = ([first_frame] if first_frame else []) + extra
     if len(references) > MAX_REFERENCE_ITEMS:
-        raise InvalidRequest(f"at most {MAX_REFERENCE_ITEMS} reference media items are supported")
+        message = f"at most {MAX_REFERENCE_ITEMS} reference media items are supported"
+        raise InvalidRequest(message)
     if sum(len(ref.data) for ref in references) > MAX_REFERENCE_TOTAL_BYTES:
-        raise InvalidRequest(
-            f"reference media total is limited to {MAX_REFERENCE_TOTAL_BYTES // (1024 * 1024)} MiB"
+        message = (
+            "reference media total is limited to "
+            f"{MAX_REFERENCE_TOTAL_BYTES // (1024 * 1024)} MiB"
         )
+        raise InvalidRequest(message)
     base = public_base(request)
 
-    async def runner(progress) -> dict:
+    async def runner(progress: ProgressCallback) -> dict[str, Any]:
         req = VideoRequest(prompt=body.prompt, model=spec.id, size=body.size,
                            duration=body.duration or body.seconds, first_frame=first_frame,
                            references=references, timeout=svc.settings.video_timeout,
@@ -76,7 +82,7 @@ async def create_video(body: VideoCreateRequest, request: Request,
         return {"url": f"{base}/v1/media/{name}", "mime": result.mime,
                 "width": result.width, "height": result.height}
 
-    request_meta = {"model": spec.id, "prompt": body.prompt, "size": body.size,
+    request_meta: dict[str, Any] = {"model": spec.id, "prompt": body.prompt, "size": body.size,
                     "duration": body.duration or body.seconds, "has_first_frame": bool(first_frame),
                     "references": len(references),
                     "reference_kinds": sorted({ref.kind for ref in references})}
@@ -87,9 +93,10 @@ async def create_video(body: VideoCreateRequest, request: Request,
 
 @router.get("/v1/videos/{task_id}")
 async def get_video(task_id: str, request: Request,
-                    svc: Services = Depends(get_services)) -> dict:
+                    svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     task = svc.tasks.get(task_id)
     if task is None or task.kind != "video":
-        raise NotFound(f"video task '{task_id}' not found")
+        message = f"video task '{task_id}' not found"
+        raise NotFound(message)
     request.state.model = task.request.get("model")
     return _task_view(task)

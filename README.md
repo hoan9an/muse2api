@@ -64,7 +64,8 @@ The project focuses on **clean engineering and easy collaboration**:
 | Session renewal / keepalive | 🧪 Needs live testing | Plain HTTP, on by default every 10 min; also wakes the account's VM so the first request is not slowed by a cold start |
 | Direct HTTP protocol driver | 🚧 Reserved | Returns 501 |
 | `/v1/images/edits` (reference images) | ✅ Implemented | Images are references for a new image; `mask` is rejected |
-| `/v1/responses` | ✅ Implemented | Chat-shaped Responses API, streaming and non-streaming; covered by `tests/test_sdk_compat.py` |
+| `/v1/responses` | ✅ Implemented | Chat-shaped Responses API, streaming and non-streaming; events match the openai SDK |
+| Function calling (`tools`) | ✅ Emulated | Tools go into the prompt; calls in the reply come back as `tool_calls` |
 | Streaming heartbeats (SSE keepalive) | ✅ Implemented | Opt-in with `MUSE2API_STREAM_HEARTBEAT_INTERVAL`; sends `: keepalive` comments while waiting for the first token |
 | Automatic media cleanup | ✅ Implemented | `MUSE2API_MEDIA_RETENTION_DAYS` (default 14, `0` disables); hourly background pruning |
 | SSRF guard for server-side image fetches | ✅ Implemented | Private and loopback URLs are rejected |
@@ -332,7 +333,20 @@ curl http://localhost:18610/admin/accounts \
 | POST/GET/DELETE | `/admin/session` | Dashboard sign-in (key → HttpOnly cookie) · probe · sign-out |
 | GET | `/admin/process-log?after=<id>&level=…` | Newest in-memory log lines, polled by id cursor |
 | GET | `/dashboard` | Web dashboard (asks for the admin key in the browser) |
-| POST | `/v1/responses` | Responses API (streaming events and non-streaming) |
+| POST | `/v1/responses` | OpenAI Responses API (streaming and non-streaming) |
+
+> **Emulated function calling.** muse.ai has no native tool calling, so the
+> gateway writes the `tools` of a chat request into the prompt and asks for
+> calls as `<tool_call>{"name": ..., "arguments": {...}}</tool_call>` or a JSON
+> block. Calls found in the reply come back as OpenAI `tool_calls` with
+> `finish_reason: "tool_calls"`, streaming or not; tool results sent back as
+> `role: "tool"` messages go into the next prompt. Whether the model emits a
+> call is up to it, and `tool_choice` is ignored. With `tools`, a streamed
+> reply arrives in one chunk at the end, since it has to be parsed first.
+> Sampling parameters (`temperature`, `top_p`, `max_tokens`) are ignored. System and developer messages are
+> forwarded inside a `<system_instructions>` block at the start of the prompt
+> on a best-effort basis: the muse chat has no native system role, so whether
+> the upstream model treats the block as binding instructions is up to it.
 
 ### Dashboard, API keys and request log
 
@@ -395,7 +409,7 @@ All reserved modules and outstanding work are tracked in **[TODO.md](TODO.md)**,
 
 - **Verification and live testing (do first)**: get the tests passing, test the browser driver against real accounts, and verify image/video generation and session renewal.
 - **Drivers**: direct HTTP protocol driver, conversation thread reuse, quota-aware scheduling.
-- **Protocol**: `/v1/responses`, mask-based inpainting, emulated tool calling.
+- **Protocol**: mask-based inpainting.
 - **Accounts, admin and operations**: storage backends, per-key rate limits, Prometheus metrics.
 
 Each task lists its location, approach and definition of done. Places marked `TODO(contributors)` in the code are the reserved extension points.

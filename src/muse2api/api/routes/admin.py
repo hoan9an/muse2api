@@ -13,7 +13,7 @@ import json
 import time
 import zipfile
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal, cast
 
 import httpx
 from fastapi import APIRouter, Depends, Query
@@ -32,6 +32,7 @@ from ...drivers.base import ChatRequest
 from ...errors import Conflict, InvalidRequest, Muse2APIError, NotFound
 from ...services.container import Services
 from ...services.request_log import COLUMNS as LOG_COLUMNS
+from ...services.request_log import RequestQuery
 from ...upstream import muse
 from ...upstream.muse import missing_session_cookies
 from ..deps import get_services, require_admin_key
@@ -50,40 +51,58 @@ EXTENSION_DIR = Path(__file__).resolve().parents[2] / "web" / "extension"
 """Unpacked Chrome extension that imports muse.ai cookies into this gateway."""
 
 
-def parse_cookies(value: dict[str, str] | str | list[dict]) -> tuple[dict[str, str], dict[str, int]]:
+def _parse_cookie_header(value: str) -> dict[str, str]:
+    """Parse a raw ``Cookie`` header string into a name -> value dict."""
+    cookies: dict[str, str] = {}
+    for raw_part in value.split(";"):
+        part = raw_part.strip()
+        if not part or "=" not in part:
+            continue
+        name, _, val = part.partition("=")
+        name = name.strip()
+        if name:
+            cookies[name] = val.strip()
+    return cookies
+
+
+def _parse_cookie_list(value: list[Any]) -> tuple[dict[str, str], dict[str, int]]:
+    """Parse a cookie-export list into ``(cookies, cookie_expires)``."""
+    cookies: dict[str, str] = {}
+    expires: dict[str, int] = {}
+    for i, entry in enumerate(value):
+        if not isinstance(entry, dict):
+            message = f"cookies[{i}] must be an object with 'name' and 'value'"
+            raise InvalidRequest(message)
+        e = cast(dict[str, Any], entry)
+        if not e.get("name"):
+            message = f"cookies[{i}] must be an object with 'name' and 'value'"
+            raise InvalidRequest(message)
+        name = str(e["name"])
+        cookies[name] = str(e.get("value", ""))
+        exp = e.get("expirationDate")
+        if exp is not None:
+            try:
+                expires[name] = int(float(exp))
+            except (TypeError, ValueError):
+                message = f"cookies[{i}].expirationDate is not a number"
+                raise InvalidRequest(message) from None
+    return cookies, expires
+
+
+def parse_cookies(value: Any) -> tuple[dict[str, str], dict[str, int]]:
     """Normalise the three cookie import formats into ``(cookies, cookie_expires)``.
 
     ``cookie_expires`` maps cookie name -> unix expiry seconds; only cookie-export
     lists carry expiry info, the other formats return an empty dict.
     """
     if isinstance(value, dict):
-        return dict(value), {}
+        return dict(cast(dict[str, Any], value)), {}
     if isinstance(value, str):
-        cookies: dict[str, str] = {}
-        for part in value.split(";"):
-            part = part.strip()
-            if not part or "=" not in part:
-                continue
-            name, _, val = part.partition("=")
-            name = name.strip()
-            if name:
-                cookies[name] = val.strip()
-        return cookies, {}
+        return _parse_cookie_header(value), {}
     if isinstance(value, list):
-        cookies, expires = {}, {}
-        for i, entry in enumerate(value):
-            if not isinstance(entry, dict) or not entry.get("name"):
-                raise InvalidRequest(f"cookies[{i}] must be an object with 'name' and 'value'")
-            name = str(entry["name"])
-            cookies[name] = str(entry.get("value", ""))
-            exp = entry.get("expirationDate")
-            if exp is not None:
-                try:
-                    expires[name] = int(float(exp))
-                except (TypeError, ValueError):
-                    raise InvalidRequest(f"cookies[{i}].expirationDate is not a number") from None
-        return cookies, expires
-    raise InvalidRequest("cookies must be a dict, a raw 'Cookie' header string, or a cookie-export list")
+        return _parse_cookie_list(cast(list[Any], value))
+    message = "cookies must be a dict, a raw 'Cookie' header string, or a cookie-export list"
+    raise InvalidRequest(message)
 
 
 def _build_account(item: AccountCreate) -> Account:
@@ -92,7 +111,8 @@ def _build_account(item: AccountCreate) -> Account:
     cookies = {k: v for k, v in cookies.items() if v}
     expires = {k: v for k, v in expires.items() if k in cookies}
     if not cookies:
-        raise InvalidRequest("cookies must not be empty")
+        message = "cookies must not be empty"
+        raise InvalidRequest(message)
     proxy = (proxy_from_input(item.proxy.server, item.proxy.username,
                               item.proxy.password or "")
              if item.proxy else None)
@@ -104,7 +124,8 @@ def _build_account(item: AccountCreate) -> Account:
 def _get(svc: Services, account_id: str) -> Account:
     acc = svc.pool.get(account_id)
     if acc is None:
-        raise NotFound(f"account '{account_id}' not found")
+        message = f"account '{account_id}' not found"
+        raise NotFound(message)
     return acc
 
 
@@ -114,7 +135,7 @@ def _evidence(svc: Services) -> Any:
 
 
 @router.get("/status")
-async def status(svc: Services = Depends(get_services)) -> dict:
+async def status(svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     return {
         "version": __version__,
         "driver": await svc.driver.health(),
@@ -124,12 +145,12 @@ async def status(svc: Services = Depends(get_services)) -> dict:
 
 
 @router.get("/accounts")
-async def list_accounts(svc: Services = Depends(get_services)) -> dict:
+async def list_accounts(svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     return {"data": [a.public() for a in svc.pool.all()]}
 
 
 @router.post("/accounts")
-async def create_account(body: AccountCreate, svc: Services = Depends(get_services)) -> dict:
+async def create_account(body: AccountCreate, svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     acc = _build_account(body)
     await svc.pool.upsert(acc)
     return {"account": acc.public(), "missing_cookies": missing_session_cookies(acc.cookies)}
@@ -137,9 +158,9 @@ async def create_account(body: AccountCreate, svc: Services = Depends(get_servic
 
 @router.post("/accounts/import")
 async def import_accounts(body: AccountsImportRequest,
-                          svc: Services = Depends(get_services)) -> dict:
+                          svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     """Import several accounts in one request; a failing entry does not abort the batch."""
-    results = []
+    results: list[dict[str, Any]] = []
     for i, item in enumerate(body.accounts):
         try:
             acc = _build_account(item)
@@ -154,7 +175,7 @@ async def import_accounts(body: AccountsImportRequest,
 
 @router.patch("/accounts/{account_id}")
 async def update_account(account_id: str, body: AccountUpdate,
-                         svc: Services = Depends(get_services)) -> dict:
+                         svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     acc = _get(svc, account_id)
     if "proxy" in body.model_fields_set and svc.pool.is_busy(account_id):
         raise Conflict("account is busy; wait for its current request before changing its proxy")
@@ -251,14 +272,15 @@ async def test_account_proxy(account_id: str, body: AccountProxyInput | None = N
 
 
 @router.delete("/accounts/{account_id}")
-async def delete_account(account_id: str, svc: Services = Depends(get_services)) -> dict:
+async def delete_account(account_id: str, svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     if not await svc.pool.remove(account_id):
-        raise NotFound(f"account '{account_id}' not found")
+        message = f"account '{account_id}' not found"
+        raise NotFound(message)
     return {"deleted": account_id}
 
 
 @router.post("/accounts/{account_id}/reset")
-async def reset_account(account_id: str, svc: Services = Depends(get_services)) -> dict:
+async def reset_account(account_id: str, svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     acc = _get(svc, account_id)
     acc.status, acc.cooldown_until, acc.last_error = AccountStatus.ACTIVE, 0.0, None
     acc.meta.pop("kind_blocked_until", None)  # e.g. video after an unconfirmed VM wake
@@ -268,14 +290,15 @@ async def reset_account(account_id: str, svc: Services = Depends(get_services)) 
 
 
 @router.post("/accounts/{account_id}/renew")
-async def renew(account_id: str, svc: Services = Depends(get_services)) -> dict:
+async def renew(account_id: str, svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     _get(svc, account_id)
     return await renew_account(svc.pool, svc.driver, account_id)
 
 
 @router.get("/accounts/{account_id}/quota")
-async def account_quota(account_id: str, refresh: bool = False,
-                        svc: Services = Depends(get_services)) -> dict:
+async def account_quota(account_id: str,
+                        svc: Annotated[Services, Depends(get_services)],
+                        *, refresh: bool = False) -> dict[str, Any]:
     """Ask the active driver for the account's quota snapshot and persist it in ``meta``.
 
     The browser driver caches each account's snapshot for 30 minutes
@@ -304,7 +327,8 @@ async def extension_zip() -> Response:
                    and not any(part.startswith(".") for part in f.relative_to(root).parts)
                    ) if root.is_dir() else []
     if not files:
-        raise NotFound("the browser extension is not bundled with this server")
+        message = "the browser extension is not bundled with this server"
+        raise NotFound(message)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for f in files:
@@ -314,12 +338,13 @@ async def extension_zip() -> Response:
 
 
 @router.get("/tasks")
-async def list_tasks(limit: int = 100, svc: Services = Depends(get_services)) -> dict:
+async def list_tasks(svc: Annotated[Services, Depends(get_services)],
+                     limit: int = 100) -> dict[str, Any]:
     return {"data": [t.model_dump(mode="json") for t in svc.tasks.list(limit)]}
 
 
 @router.post("/tasks/{task_id}/cancel")
-async def cancel_task(task_id: str, svc: Services = Depends(get_services)) -> dict:
+async def cancel_task(task_id: str, svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     return {"cancelled": await svc.tasks.cancel(task_id)}
 
 
@@ -327,7 +352,8 @@ async def cancel_task(task_id: str, svc: Services = Depends(get_services)) -> di
 def _get_key(svc: Services, key_id: str) -> ApiKey:
     key = svc.keys.get(key_id)
     if key is None:
-        raise NotFound(f"key '{key_id}' not found")
+        message = f"key '{key_id}' not found"
+        raise NotFound(message)
     return key
 
 
@@ -336,14 +362,14 @@ BUILTIN_KEYS = ("legacy", "admin")
 _NO_USAGE = {"total": 0, "requests_24h": 0, "errors_24h": 0, "last_request_at": None}
 
 
-def _usage(row: dict | None) -> dict:
+def _usage(row: dict[str, Any] | None) -> dict[str, Any]:
     if row is None:
         return dict(_NO_USAGE)
     return {k: row[k] for k in _NO_USAGE}
 
 
 @router.get("/keys")
-async def list_keys(svc: Services = Depends(get_services)) -> dict:
+async def list_keys(svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     """Stored keys plus the built-in identities, each with request counts from the log."""
     usage = {r["key_id"]: r for r in (await svc.requests.key_usage())["data"]}
     return {
@@ -354,20 +380,20 @@ async def list_keys(svc: Services = Depends(get_services)) -> dict:
 
 
 @router.get("/keys/usage")
-async def key_usage(svc: Services = Depends(get_services)) -> dict:
+async def key_usage(svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     """Raw per-``key_id`` counts, including deleted keys still present in the log."""
     return await svc.requests.key_usage()
 
 
 @router.post("/keys")
-async def create_key(body: KeyCreate, svc: Services = Depends(get_services)) -> dict:
+async def create_key(body: KeyCreate, svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     key, plaintext = await svc.keys.create(body.name.strip(), body.note, body.expires_at)
     # The only time the plaintext key is ever returned.
     return {"key": key.public(), "api_key": plaintext}
 
 
 @router.patch("/keys/{key_id}")
-async def update_key(key_id: str, body: KeyUpdate, svc: Services = Depends(get_services)) -> dict:
+async def update_key(key_id: str, body: KeyUpdate, svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     key = _get_key(svc, key_id)
     if body.name is not None:
         key.name = body.name.strip()
@@ -391,9 +417,10 @@ async def rotate_key(key_id: str, svc: Services = Depends(get_services)) -> dict
 
 
 @router.delete("/keys/{key_id}")
-async def delete_key(key_id: str, svc: Services = Depends(get_services)) -> dict:
+async def delete_key(key_id: str, svc: Annotated[Services, Depends(get_services)]) -> dict[str, Any]:
     if not await svc.keys.remove(key_id):
-        raise NotFound(f"key '{key_id}' not found")
+        message = f"key '{key_id}' not found"
+        raise NotFound(message)
     return {"deleted": key_id}
 
 
@@ -410,21 +437,28 @@ async def process_log(
 
 
 # ---- request log ----
+class RequestFilter(BaseModel):
+    """Query filter bundle for ``GET /admin/requests`` (one query param per field)."""
+    key_id: str | None = None
+    account_id: str | None = None
+    status: Literal["2xx", "3xx", "4xx", "5xx", "failed"] | None = None
+    path: str | None = None
+    since: float | None = Field(default=None, description="Unix seconds")
+    hide_polls: bool = False
+    limit: int = Field(default=100, ge=1, le=500)
+    offset: int = Field(default=0, ge=0)
+
+
 @router.get("/requests")
 async def list_requests(
-    key_id: str | None = None,
-    account_id: str | None = None,
-    status: Literal["2xx", "3xx", "4xx", "5xx", "failed"] | None = None,
-    path: str | None = None,
-    since: float | None = Query(default=None, description="Unix seconds"),
-    hide_polls: bool = False,
-    limit: int = Query(default=100, ge=1, le=500),
-    offset: int = Query(default=0, ge=0),
-    svc: Services = Depends(get_services),
-) -> dict:
-    return await svc.requests.query(key_id=key_id, account_id=account_id, status=status,
-                                    path=path, since=since, hide_polls=hide_polls,
-                                    limit=limit, offset=offset)
+    svc: Annotated[Services, Depends(get_services)],
+    filters: Annotated[RequestFilter, Depends()],
+) -> dict[str, Any]:
+    return await svc.requests.query(RequestQuery(
+        key_id=filters.key_id, account_id=filters.account_id, status=filters.status,
+        path=filters.path, since=filters.since, hide_polls=filters.hide_polls,
+        limit=filters.limit, offset=filters.offset,
+    ))
 
 
 def _export_payload(rows: list[dict], fmt: str) -> tuple[bytes, str, str]:
@@ -452,9 +486,10 @@ async def export_requests(
     svc: Services = Depends(get_services),
 ) -> Response:
     """The request log as a file, filtered exactly like ``GET /admin/requests``."""
-    rows = (await svc.requests.query(key_id=key_id, account_id=account_id, status=status,
-                                     path=path, since=since, hide_polls=hide_polls,
-                                     limit=limit, offset=0))["data"]
+    rows = (await svc.requests.query(RequestQuery(
+        key_id=key_id, account_id=account_id, status=status, path=path, since=since,
+        hide_polls=hide_polls, limit=limit, offset=0,
+    )))["data"]
     body, media_type, ext = _export_payload(rows, format)
     stamp = time.strftime("%Y%m%d-%H%M%S")
     return Response(body, media_type=media_type, headers={
@@ -520,8 +555,8 @@ async def quota_history(
 
 
 @router.get("/stats")
-async def stats(window: Literal["1h", "24h", "7d"] = "24h",
-                svc: Services = Depends(get_services)) -> dict:
+async def stats(svc: Annotated[Services, Depends(get_services)],
+                window: Literal["1h", "24h", "7d"] = "24h") -> dict[str, Any]:
     return {"now": time.time(), **await svc.requests.stats(window)}
 
 

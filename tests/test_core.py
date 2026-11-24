@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from muse2api.core.models import resolve_model
@@ -17,8 +19,8 @@ def test_multi_turn_has_roles_and_images():
             {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}},
         ]},
     ])
-    assert "[System]\nbe brief" in flat.text
-    assert "[User]\nwhat is this" in flat.text
+    assert flat.text.startswith("<system_instructions>\nbe brief\n</system_instructions>")
+    assert "what is this" in flat.text
     assert flat.images == ["data:image/png;base64,AAAA"]
 
 
@@ -62,7 +64,7 @@ def test_resolve_model():
         resolve_model("muse-image", "chat")
 
 
-def test_media_prune_removes_only_expired_files(tmp_path):
+def test_media_prune_removes_only_expired_files(tmp_path: Path):
     import os
     import time
 
@@ -80,7 +82,7 @@ def test_media_prune_removes_only_expired_files(tmp_path):
     assert (tmp_path / "media" / new_name).exists()
 
 
-def test_media_prune_disabled_and_foreign_files(tmp_path):
+def test_media_prune_disabled_and_foreign_files(tmp_path: Path):
     from muse2api.core.media import MediaStore
 
     store = MediaStore(tmp_path / "media")
@@ -94,9 +96,9 @@ def test_media_prune_disabled_and_foreign_files(tmp_path):
     assert (tmp_path / "media" / "foreign.txt").exists()
 
 
-def test_blank_browser_profile_dir_falls_back_to_data_dir(tmp_path, monkeypatch):
+def test_blank_browser_profile_dir_falls_back_to_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     from muse2api.config import Settings
 
     monkeypatch.setenv("MUSE2API_BROWSER_PROFILE_DIR", "")
-    settings = Settings(_env_file=None, data_dir=tmp_path)
+    settings = Settings(_env_file=None, data_dir=tmp_path)  # type: ignore[call-arg]
     assert settings.profile_dir == tmp_path / "browser-profile"

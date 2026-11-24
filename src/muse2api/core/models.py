@@ -21,6 +21,11 @@ class ModelSpec:
 MODELS: dict[str, ModelSpec] = {
     m.id: m
     for m in (
+        ModelSpec("muse-spark-1.3-contributor", "chat", "Muse Spark 1.3 Contributor (4B Free Web Tokens)"),
+        ModelSpec("muse-spark-1.3", "chat", "Muse Spark 1.3 (Fast reasoning)"),
+        ModelSpec("muse-spark-1.2", "chat", "Muse Spark 1.2 (Stable)"),
+        ModelSpec("muse-spark", "chat", "Muse Spark"),
+        ModelSpec("meta.muse-spark-1.3", "chat", "Meta Muse Spark 1.3"),
         ModelSpec("muse-chat", "chat", "Default muse.ai assistant"),
         ModelSpec("muse-image", "image", "Text-to-image / image editing"),
         ModelSpec("muse-video", "video", "Text-to-video / first-frame image-to-video"),
@@ -31,6 +36,9 @@ MODELS: dict[str, ModelSpec] = {
 # existing OpenAI tooling works without reconfiguration.
 ALIASES: dict[str, str] = {
     "muse-spark": "muse-chat",
+    "spark": "muse-spark-1.3-contributor",
+    "spark-1.3": "muse-spark-1.3",
+    "spark-1.2": "muse-spark-1.2",
     "gpt-4o": "muse-chat",
     "gpt-4o-mini": "muse-chat",
     "gpt-4.1": "muse-chat",
@@ -39,6 +47,7 @@ ALIASES: dict[str, str] = {
     "gpt-5-mini": "muse-chat",
     "o3": "muse-chat",
     "o4-mini": "muse-chat",
+    "claude": "muse-chat",
     "claude-3-5-sonnet": "muse-chat",
     "claude-3-7-sonnet": "muse-chat",
     "claude-sonnet-4": "muse-chat",
@@ -77,5 +86,6 @@ def resolve_model(name: str | None, kind: ModelKind) -> ModelSpec:
     if spec is None:
         return MODELS[DEFAULT_BY_KIND[kind]]
     if spec.kind != kind:
-        raise InvalidRequest(f"model '{name}' is a {spec.kind} model, expected {kind}")
+        message = f"model '{name}' is a {spec.kind} model, expected {kind}"
+        raise InvalidRequest(message)
     return spec
