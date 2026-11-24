@@ -7,8 +7,20 @@ solved. Read this before making changes.
 
 Personal fork of [`www222fff/muse2api`](https://github.com/www222fff/muse2api)
 — an async FastAPI gateway exposing muse.ai as an OpenAI-compatible API.
-It is deployed to the owner's private homelab and also carries one downstream
-fix (`MUSE2API_CHROMIUM_FLAGS`) that upstream does not have yet.
+It is deployed to the owner's private homelab and carries downstream work that
+upstream does not have:
+
+- `MUSE2API_CHROMIUM_FLAGS` (extra Chromium launch flags; still not upstream,
+  upstream only adds `--no-sandbox` automatically when running as root).
+- `MUSE2API_SITE_URL` (`upstream/muse.py:Endpoints`), so a fixture server can
+  stand in for muse.ai.
+- The web console/dashboard, session login, account proxies (loopback relay),
+  request tracing (`x-request-id`), failure evidence (`MUSE2API_DEBUG_CAPTURE`),
+  idempotency keys and multi-kind reference media.
+
+Upstream `0.5.0` is merged in (`merge/upstream-0.5.0`): emulated tool calling,
+`/v1/responses`, bubble HTML → markdown, per-request thread isolation and the
+Chromium startup diagnostics. Keep those parts when resolving future merges.
 
 ## Remotes and sync workflow
 
